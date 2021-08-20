@@ -16,26 +16,57 @@ lemma im_unique_particulars_are_non_permutable_particulars:
 proof (intro subsetI ballI ; clarsimp simp: isomorphically_unique_particulars_def)
   fix x \<phi> y
   assume as1: \<open>particular_struct_endomorphism \<Gamma> \<phi>\<close> \<open>x \<in> \<E>\<close>
-      \<open>\<forall>\<phi>\<in>BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>. \<forall>\<sigma>\<in>Morphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>.\<forall>y\<in>\<E>. (\<sigma> y = \<phi> x) = (y = x)\<close>
-      \<open>y \<in> \<E>\<close>
-  interpret I: particular_struct_endomorphism \<open>\<Gamma>\<close> \<open>\<phi>\<close> using as1(1) by blast
-  have A: \<open>\<sigma> y = \<phi> x \<longleftrightarrow> y = x\<close> if \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> \<open>\<sigma> \<in> Morphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>\<close> \<open>y \<in> \<E>\<close> for \<phi> \<sigma> y
+      \<open>\<forall>\<phi>\<in>BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>. 
+       \<forall>\<sigma>\<in>Morphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>.
+       \<forall>y\<in>\<E>. \<sigma> y = \<phi> x \<longleftrightarrow> y = x\<close>
+      \<open>y \<in> \<E>\<close>  
+  interpret I: particular_struct_endomorphism \<Gamma> \<phi> using as1(1) by blast
+(*  interpret I2: particular_struct_bijection_1 \<Gamma> \<phi> using as1(1) by blast *)
+  have A: \<open>\<sigma> y = \<phi> x \<longleftrightarrow> y = x\<close> if 
+    \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> \<open>\<sigma> \<in> Morphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>\<close> \<open>y \<in> \<E>\<close> 
+    for \<phi> \<sigma> y
     using that as1(3) by metis
-  obtain \<pi> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>inj \<pi>\<close>
+  obtain \<theta> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>inj \<theta>\<close>
     using injection_to_ZF_exist by blast
+  define \<gamma> where \<open>\<gamma> x \<equiv> Opair (\<theta> x) undefined\<close> for x
+  have \<gamma>_inj: \<open>inj_on \<gamma> \<P>\<close>
+    using \<open>inj \<theta>\<close> by (simp add: Opair \<gamma>_def inj_on_def)
+  define \<pi> where \<open>\<pi> \<equiv> restrict \<gamma> \<P>\<close>
+  have \<pi>\<^sub>1: \<open>inj_on \<pi> \<P>\<close>
+    apply (auto simp: \<pi>_def)
+    using \<gamma>_inj inj_on_subset by blast
+  have ex_inj: \<open>\<exists>f::ZF \<Rightarrow> ZF. inj f\<close> using inj_on_id by blast
+  have \<pi>_ext: \<open>\<pi> \<in> extensional \<E>\<close>
+    by (auto simp: \<pi>_def extensional_def)
+  have \<pi>_img: \<open>undefined \<notin> \<pi> ` \<E>\<close>
+    apply (auto simp: \<pi>_def \<gamma>_def)    
+    by (metis Elem_Opair_exists notsym_Elem)    
   have pi_isomorph: \<open>\<pi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
-    using  \<open>inj \<pi>\<close> by (meson UNIV_I inj_morph_img_BijMorphs inj_on_id inj_on_subset subsetI)
-  have pi_sigma_morph: \<open>\<pi> \<circ> \<phi> \<in> Morphs\<^bsub>\<Gamma>,MorphImg \<pi> \<Gamma>\<^esub>\<close>
-    by (meson I.particular_struct_morphism_axioms bijections1_are_morphisms morphisms_are_closed_under_comp morphs_I pi_isomorph)
-  have \<open>\<pi> x = \<pi> (\<phi> x)\<close>
-    using A[of \<open>\<pi>\<close> \<open>\<pi> \<circ> \<phi>\<close>, OF pi_isomorph pi_sigma_morph \<open>x \<in> \<E>\<close>,simplified]
-    by simp
-  then have \<open>x = \<phi> x\<close>
-    by (rule \<open>inj \<pi>\<close>[THEN inj_onD]; simp)
-  then show \<open>\<phi> y = x \<longleftrightarrow> y = x\<close>
-    apply (intro iffI ; simp)    
-    by (rule A[where y=y and \<phi> = \<pi> and \<sigma> = \<open>\<pi> \<circ> \<phi>\<close>,OF _ _ \<open>y \<in> \<E>\<close>,simplified o_apply
-          , THEN iffD1] ; (intro pi_sigma_morph pi_isomorph)? ; simp)      
+    by (intro inj_morph_img_BijMorphs \<pi>\<^sub>1 ex_inj \<pi>_ext \<pi>_img)
+  have pi_sigma_morph: \<open>\<pi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi> \<in> Morphs\<^bsub>\<Gamma>,MorphImg \<pi> \<Gamma>\<^esub>\<close>
+    by (meson I.particular_struct_morphism_axioms bijections1_are_morphisms
+        morphisms_are_closed_under_comp morphs_I pi_isomorph)
+  have pi_x_pi_phi_x: \<open>\<pi> x = \<pi> (\<phi> x)\<close>
+    using A[of \<open>\<pi>\<close> \<open>\<pi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<close>, 
+          OF pi_isomorph pi_sigma_morph \<open>x \<in> \<E>\<close>,simplified]
+         compose_eq[OF \<open>x \<in> \<E>\<close>,of \<pi> \<phi>] 
+    by simp    
+  have I_ends[simp]: \<open>I.endurants = \<E>\<close> by simp
+  then have \<open>\<phi> x \<in> \<E>\<close>
+    using I.morphism_scope_particulars \<open>x \<in> \<E>\<close> by auto  
+
+  have T: \<open>x = \<phi> x\<close>
+    apply (rule \<pi>\<^sub>1[THEN inj_onD,OF _ \<open>x \<in> \<E>\<close> \<open>\<phi> x \<in> \<E>\<close>])
+    by (intro \<open>\<pi> x = \<pi> (\<phi> x)\<close>)    
+  show \<open>\<phi> y = x \<longleftrightarrow> y = x\<close>
+    using T 
+    apply (intro iffI ; simp?)  
+    using A[where y=y and \<phi> = \<pi> and \<sigma> = \<open>\<pi> \<circ>\<^bsub>\<P>\<^esub> \<phi>\<close>
+         ,OF pi_isomorph _ \<open>y \<in> \<E>\<close>, OF pi_sigma_morph[simplified I_ends]
+         , simplified compose_eq[OF \<open>y \<in> \<E>\<close>] pi_x_pi_phi_x
+         ,simplified
+         ]
+    by metis      
 qed
 
 lemma non_permutable_particulars_are_im_unique_particulars: 
@@ -49,34 +80,47 @@ proof (intro subsetI ballI ; clarsimp simp: isomorphically_unique_particulars_de
       \<open>inj f\<close>     
       \<open>x \<in> \<E>\<close>
       \<open>y \<in> \<E>\<close>
+      \<open>\<phi> \<in> extensional \<E>\<close>
+      \<open>undefined \<notin> \<phi> ` \<E>\<close>
   have A: \<open>\<phi> y = x \<longleftrightarrow> y = x\<close> if \<open>\<phi> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close> \<open>y \<in> \<E>\<close> for \<phi> y using as(2) that by blast  
   interpret I1: particular_struct_morphism \<open>\<Gamma>\<close> \<open>MorphImg \<phi> \<Gamma>\<close> \<open>\<sigma>\<close> using as(1) by simp
   interpret I: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close>
-    using as(3,4) inj_morph_img_isomorphism[of \<open>\<phi>\<close>] by blast
+    using as(3,4,7,8) inj_morph_img_isomorphism[of \<open>\<phi>\<close>] by blast
   interpret Inv: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<close> \<open>I.inv_morph\<close>    
     using particular_struct_bijection_iff_particular_struct_bijection_1 by blast
 
-  have B: \<open>particular_struct_morphism \<Gamma> \<Gamma> (I.inv_morph \<circ> \<sigma>)\<close>
+  have B: \<open>particular_struct_morphism \<Gamma> \<Gamma> (I.inv_morph \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<sigma>)\<close>    
     apply (intro particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> \<Gamma>\<close>])
     subgoal using I1.particular_struct_morphism_axioms by blast
-    by (simp add: particular_struct_bijection.axioms(1) particular_struct_injection.axioms(1))
+    subgoal
+      using particular_struct_bijection.axioms(1) 
+            particular_struct_injection.axioms(1) 
+            I.inv_is_bijective_morphism
+      by metis
+    done
+  then interpret inv_sigma: particular_struct_morphism \<Gamma> \<Gamma> \<open>Inv \<E> \<phi> \<circ>\<^bsub>\<E>\<^esub> \<sigma>\<close> 
+    by simp
 
-  have C: \<open>I.inv_morph \<circ> \<sigma> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
+  have C: \<open>Inv \<E> \<phi> \<circ>\<^bsub>\<E>\<^esub> \<sigma> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
     apply (simp)
-    apply (intro_locales) 
-   using B particular_struct_morphism_def 
-      pre_particular_struct_morphism_def by blast+
+    by (intro_locales) 
 
-  have D: \<open>I.inv_morph (\<sigma> x) = x\<close> using A[OF C \<open>x \<in> \<E>\<close>,simplified] .
-  have E: \<open>I.inv_morph (\<phi> x) = x\<close> using \<open>x \<in> \<E>\<close> by simp
-  have F: \<open>I.inv_morph (\<sigma> x) = I.inv_morph (\<phi> x)\<close> using D E by simp
+  have D: \<open>Inv \<E> \<phi> (\<sigma> x) = x\<close> 
+    using A[OF C \<open>x \<in> \<E>\<close>]  
+    by (auto simp add: compose_eq \<open>x \<in> \<E>\<close>)
+  have E: \<open>Inv \<E> \<phi> (\<phi> x) = x\<close>
+    by (intro Inv_f_eq \<open>x \<in> \<E>\<close> \<open>inj_on \<phi> \<E>\<close>)      
+  have endo: \<open>particular_struct_endomorphism \<Gamma> (Inv \<E> \<phi> \<circ>\<^bsub>\<E>\<^esub> \<sigma>)\<close>
+    by (intro_locales)
+  have F: \<open>Inv \<E> \<phi> (\<sigma> x) = Inv \<E> \<phi> (\<phi> x)\<close> using D E by simp
   show \<open>\<sigma> y = \<phi> x \<longleftrightarrow> y = x\<close>
     apply (intro iffI ; simp?)
     subgoal
-      apply (rule A[where y=y and \<phi> = \<open>I.inv_morph \<circ> \<sigma>\<close>,OF C \<open>y \<in> \<E>\<close>,THEN iffD1])
-      by (simp add: E)
-    subgoal
-      apply (rule F inj_onD[OF Inv.morph_is_injective,simplified,OF F])
+      supply R = A[where y=y and \<phi> = \<open>Inv \<E> \<phi> \<circ>\<^bsub>\<E>\<^esub> \<sigma>\<close>,OF C \<open>y \<in> \<E>\<close>,THEN iffD1
+                , simplified compose_eq[OF \<open>y \<in> \<E>\<close>]] D[simplified]
+      by (rule A[THEN iffD1, of \<open>Inv \<E> \<phi> \<circ>\<^bsub>\<E>\<^esub> \<sigma>\<close>] ; (simp add: as compose_eq endo)?) 
+    subgoal      
+      apply (rule F inj_onD[OF Inv.morph_is_injective[simplified],simplified,OF F])
       subgoal using \<open>x \<in> \<E>\<close> by (simp add: I1.morph_preserves_particulars)
       using \<open>x \<in> \<E>\<close> by (simp add: I.morph_preserves_particulars)
     done 

@@ -23,13 +23,16 @@ text_raw\<open>\par\<close>
 
 lemma non_permutable_are_anchored: \<open>\<P>\<^sub>1\<^sub>! \<subseteq> \<P>\<^sub>\<down>\<close>
 proof (intro subsetI ; elim non_permutables_E)
-  fix x
+  fix x  
   assume \<open>x \<in> \<E>\<close> \<open>non_permutable x\<close>
-  obtain \<sigma> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>inj \<sigma>\<close> 
-    using injection_to_ZF_exist by blast
+  obtain \<sigma> :: \<open>'p \<Rightarrow> ZF\<close>  where \<sigma>:
+      \<open>inj_on \<sigma> \<E>\<close> 
+      \<open>\<sigma> \<in> extensional \<E>\<close>
+      \<open>undefined \<notin> \<sigma> ` \<E>\<close>
+    using inj_zf_to_delimited_func injection_to_ZF_exist
+    by metis
   interpret sigma: particular_struct_bijection_1 \<Gamma> \<sigma>    
-    by (metis \<open>inj \<sigma>\<close> inj_on_subset inj_morph_img_isomorphism 
-              UNIV_I inj_on_id subsetI)
+    by (metis \<sigma> inj_morph_img_isomorphism inj_on_id)
 
   interpret sigma_inv: 
     particular_struct_bijection \<open>MorphImg \<sigma> \<Gamma>\<close> \<Gamma> sigma.inv_morph    
@@ -52,22 +55,26 @@ proof (intro subsetI ; elim non_permutables_E)
     have AA: \<open>\<delta> y = x \<longleftrightarrow> y = x\<close> 
       if \<open>\<delta> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close> \<open>y \<in> \<E>\<close> for y \<delta> 
       using non_permutable_E[OF \<open>non_permutable x\<close>] that by metis
-    interpret phi_sigma: particular_struct_morphism \<Gamma> \<Gamma> \<open>\<phi> \<circ> \<sigma>\<close>
-      by (intro particular_struct_morphism_comp[of _ \<open>MorphImg \<sigma> \<Gamma>\<close>]
-              sigma.particular_struct_morphism_axioms
-              phi.particular_struct_morphism_axioms)
-    have \<open>particular_struct_endomorphism \<Gamma> (\<phi> \<circ> \<sigma>)\<close> by intro_locales
-    then have BB: \<open>\<phi> \<circ> \<sigma> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close> by blast
+    interpret phi_sigma: particular_struct_morphism \<Gamma> \<Gamma> \<open>\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<sigma>\<close>
+      apply (intro particular_struct_morphism_comp[of \<Gamma> \<open>MorphImg \<sigma> \<Gamma>\<close> \<sigma> \<Gamma> \<phi>])
+      by intro_locales
+
+    have \<open>particular_struct_endomorphism \<Gamma> (\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<sigma>)\<close> by intro_locales
+    then have BB: \<open>\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<sigma> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close> by blast
     have CC: \<open>sigma.inv_morph z \<in> \<E>\<close> 
       using sigma_inv.morph_preserves_particulars that(1) by auto
     have DD: \<open>sigma.inv_morph z = x \<longleftrightarrow> z = \<sigma> x\<close>      
-      using \<open>x \<in> \<E>\<close> as(1) by fastforce
+      by (metis Inv_f_eq \<Gamma>_simps(2) \<open>x \<in> \<E>\<close> \<sigma>(1) particular_struct_bijection_1_def 
+           particular_struct_surjection.inv_morph_morph sigma.particular_struct_bijection_1_axioms 
+           that(1))
     have EE: \<open>z = \<sigma> x \<longleftrightarrow> \<phi> (\<sigma> (sigma.inv_morph z)) = x\<close>
-      using AA[of \<open>\<phi> \<circ> \<sigma>\<close>, of \<open>sigma.inv_morph z\<close>,
-               OF BB,simplified,OF CC] DD 
+      using AA[of \<open>\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<sigma>\<close>, of \<open>sigma.inv_morph z\<close>,
+               OF BB,simplified, simplified compose_eq] CC DD
       by simp
+    have FF: \<open>z \<in> \<sigma> ` \<E>\<close> 
+      using \<Gamma>_simps(2) sigma.morph_image_particulars that(1) by presburger
     show ?thesis
-      by (simp add: EE as(1))                
+      using EE[simplified, simplified f_Inv_eq[OF FF]] by metis      
   qed
   show \<open>x \<in> \<P>\<^sub>\<down>\<close>
     apply (intro anchored_particulars_I[
@@ -90,11 +97,11 @@ proof (intro subsetI ; elim anchored_particulars_E anchorsE
     using A(2) by blast
   interpret phi1: particular_struct_morphism \<Gamma> \<Gamma> \<phi>'    
     using phi1_auto.particular_struct_morphism_axioms by blast
-  have \<open>particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> (\<phi>' \<circ> \<phi>)\<close>
+  have \<open>particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> (\<phi>' \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>)\<close>
     apply (intro particular_struct_morphism_comp[of _ \<Gamma>])
     subgoal using phi.particular_struct_morphism_axioms by blast      
     by (simp add: phi1_auto.particular_struct_morphism_axioms)
-  then have D: \<open>(\<phi>' \<circ> \<phi>) \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close> by blast
+  then have D: \<open>(\<phi>' \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>) \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close> by blast
 
   show \<open>y\<^sub>1 = \<phi>' y\<^sub>1\<close> 
     if A: 
@@ -107,7 +114,8 @@ proof (intro subsetI ; elim anchored_particulars_E anchorsE
     obtain B: \<open>y \<in> phi.src.endurants\<close> using A(2) by simp
     have C: \<open>\<phi> y = \<phi>' y\<^sub>1\<close>
       using A(3)[OF B phi_in_morphs] by simp 
-    have E: \<open>\<phi>' (\<phi> y) = \<phi>' y\<^sub>1\<close> using A(3)[OF B D] by simp
+    have E: \<open>\<phi>' (\<phi> y) = \<phi>' y\<^sub>1\<close> 
+      using A(3) D compose_eq B by metis
     have F: \<open>\<phi> y \<in> \<P>\<close>  by (simp add: C A(1))
     obtain \<sigma> where \<open>particular_struct_endomorphism \<Gamma> \<sigma>\<close>
                    and sigma[simp]: \<open>\<sigma> (\<phi> y) = y\<^sub>1\<close>
@@ -117,16 +125,16 @@ proof (intro subsetI ; elim anchored_particulars_E anchorsE
       by simp
     interpret sigma: particular_struct_morphism \<Gamma> \<Gamma> \<sigma> 
       using sigma_auto.particular_struct_morphism_axioms by simp
-    interpret sigma_phi: particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<sigma> \<circ> \<phi>\<close>
+    interpret sigma_phi: particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>\<close>
       apply (intro particular_struct_morphism_comp[of _ \<Gamma>])
       subgoal using phi.particular_struct_morphism_axioms 
         by blast      
       by (simp add: sigma.particular_struct_morphism_axioms)
-    have G: \<open>(\<sigma> \<circ> \<phi>) \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
+    have G: \<open>(\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>) \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
       using sigma_phi.particular_struct_morphism_axioms
       by blast
     show ?thesis
-      using A(3)[OF B G,simplified] by simp
+      using A(3) G compose_eq B sigma by metis
   qed
   show \<open>\<phi>' x = x\<close>
     if A:
@@ -137,7 +145,7 @@ proof (intro subsetI ; elim anchored_particulars_E anchorsE
   proof -
     obtain B: \<open>y \<in> phi.src.endurants\<close> using A(2) by simp
     have C: \<open>\<phi> y = x\<close> using A(3)[OF B phi_in_morphs] by simp
-    then show \<open>\<phi>' x = x\<close> using A(3)[OF B D] by simp
+    then show \<open>\<phi>' x = x\<close> using A(3) B D compose_eq by metis
   qed
 qed
 

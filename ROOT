@@ -1,5 +1,6 @@
 session thesis = "HOL-ZF" +
-  options [document = pdf, document_output = "output",
+  options [document = pdf, 
+      document_output = "../document",
       document_tags = "lemmas%aponly,begin%aponly,end%aponly,locale%aponly,text%document,text_raw%document,context%aponly,theory%aponly,interpretation%aponly,declare%aponly,text%bodyonly,text_raw%bodyonly",
       show_question_marks = false]
   directories
@@ -54,7 +55,7 @@ session thesis = "HOL-ZF" +
     "Sortals/Trimming"
     "Sortals/FiniteInstantiation"
     "Sortals/Sortality"  
-  document_files (in "./document")
+  document_files (in "../document")
     "root.tex"
     
 

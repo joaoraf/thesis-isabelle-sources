@@ -99,14 +99,37 @@ begin
 
 declare src.isomorphism_1_iff_inj[simp del]
 
+lemma \<open>(f \<circ> g) ` x = f ` g ` x\<close> for f g x  
+  by (simp add: image_comp)
+
+lemma map_comp_3_img:
+  \<open>(f\<^sub>3 \<circ>\<^bsub>X\<^esub> f\<^sub>2 \<circ>\<^bsub>X\<^esub> f\<^sub>1) ` x = (f\<^sub>3 \<circ> f\<^sub>2 \<circ> f\<^sub>1) ` x\<close>  if \<open>x \<subseteq> X\<close>
+proof -  
+  show ?thesis
+  apply (subst comp_map_associative[of _ _ \<open>f\<^sub>1 ` X\<close>] ; simp)  
+    apply (subst map_comp_img_eq_comp_imp[OF that])
+    apply (subst image_comp[symmetric])
+    apply (subst map_comp_img_eq_comp_imp)
+    subgoal using that by blast
+    by auto
+qed     
+
+lemma map_comp_3_app:
+  \<open>(f\<^sub>3 \<circ>\<^bsub>X\<^esub> f\<^sub>2 \<circ>\<^bsub>X\<^esub> f\<^sub>1) x = f\<^sub>3 (f\<^sub>2 (f\<^sub>1 x))\<close>  if \<open>x \<in> X\<close>
+   using that  by (simp add: compose_eq)
+
 lemma  \<^marker>\<open>tag (proof) aponly\<close> invariant_under_isomorphisms_B:
   fixes zf_iof :: \<open>('q,'u) iof_predicate\<close>
   assumes 
     \<open>iso_invariant_iof_predicate zf_iof\<close>
-    \<open>inj_on (f :: 'p\<^sub>1 \<Rightarrow> ZF) (particulars \<Gamma>\<^sub>1)\<close>
-    \<open>inj_on (g :: 'p\<^sub>2 \<Rightarrow> ZF) (\<phi> ` particulars \<Gamma>\<^sub>1)\<close>
+    \<open>inj_on (f :: 'p\<^sub>1 \<Rightarrow> ZF) src.\<P>\<close>
+    \<open>inj_on (g :: 'p\<^sub>2 \<Rightarrow> ZF) tgt.\<P>\<close>
     \<open>x \<in> src.\<P>\<close>
     \<open>w \<in> src.\<W>\<close>
+    \<open>f \<in> extensional src.\<P>\<close>
+    \<open>undefined \<notin> f ` src.\<P>\<close>
+    \<open>g \<in> extensional tgt.\<P>\<close>
+    \<open>undefined \<notin> g ` tgt.\<P>\<close>
     
   shows \<open>zf_iof (MorphImg f \<Gamma>\<^sub>1) (f x)  (f ` w) U \<longleftrightarrow> 
          zf_iof (MorphImg (g \<circ> \<phi>) \<Gamma>\<^sub>1) (g (\<phi> x)) (g ` \<phi> ` w) U\<close>
@@ -120,38 +143,58 @@ proof -
   have A1[simp]: \<open>src.\<Gamma> = \<Gamma>\<^sub>1\<close> by auto
   interpret f: particular_struct_bijection_1 \<Gamma>\<^sub>1 f \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE(ZF)\<close>
     using src.inj_morph_img_isomorphism[OF inj_on_subset[OF assms(2)]
-            , simplified] by simp
-  interpret g: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<close> g \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE(ZF)\<close>
+            , simplified, OF assms(6,7)]  by simp
+  interpret g: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<close> g \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE(ZF)\<close>    
     using tgt.inj_morph_img_isomorphism[OF inj_on_subset[OF assms(3)]
-            , simplified] .
+            , simplified,OF assms(8,9)] .
   have B[simp]: \<open>MorphImg f.inv_morph (MorphImg f \<Gamma>\<^sub>1) = \<Gamma>\<^sub>1\<close>
     by (metis f.particular_struct_bijection_axioms 
           particular_struct_bijection.inv_is_bijective_morphism 
           particular_struct_bijection_iff_particular_struct_bijection_1)
   have C: \<open>f x \<in> f.tgt.\<P>\<close> using assms(4) by blast
   have D: \<open>f ` w \<in> f.\<W>\<^sub>\<phi>\<close> using assms(5) by blast
+  have E: \<open>f ` w \<subseteq> f.tgt.\<P>\<close> using assms(5) by blast
   interpret phi_zf: 
     particular_struct_bijection_1 
       \<open>MorphImg f \<Gamma>\<^sub>1\<close> 
-      \<open>g \<circ> \<phi> \<circ> f.inv_morph\<close> 
+      \<open>g \<circ>\<^bsub>f.tgt.\<P>\<^esub> \<phi> \<circ>\<^bsub>f.tgt.\<P>\<^esub> f.inv_morph\<close> 
       \<open>TYPE(ZF)\<close> \<open>TYPE(ZF)\<close>
     apply (intro particular_struct_bijection_1_comp ; (simp only: B)?)
     subgoal 
       using particular_struct_bijection_iff_particular_struct_bijection_1 
       by blast
     subgoal using particular_struct_bijection_1_axioms by simp    
-    using g.particular_struct_bijection_1_axioms by blast
-
+    using g.particular_struct_bijection_1_axioms by auto
+    
   interpret iso_invariant_iof_predicate zf_iof using assms(1) by simp
   have x_inv_f[simp]: \<open>f.inv_morph (f x) = x\<close> using assms(4) by auto
   have w_inv_f[simp]: \<open>f.inv_morph ` f ` w = w\<close> using assms(5) by auto
+  have f_x: \<open>f x \<in> f.tgt.\<P>\<close> using assms(4) by auto
+  have f_w: \<open>f ` w \<subseteq> f.tgt.\<P>\<close> using assms(5) by auto
+  note c_simp1[simp] = compose_eq[OF f_x]
+  note c_simp2[simp] = map_comp_img_eq_comp_imp[OF f_w]
+  have F[simp]: \<open>MorphImg (g \<circ>\<^bsub>f.tgt.endurants\<^esub> \<phi> \<circ>\<^bsub>f.tgt.endurants\<^esub> f.inv_morph)
+       (MorphImg f \<Gamma>\<^sub>1) = MorphImg (g \<circ> \<phi>) \<Gamma>\<^sub>1\<close>
+    apply (auto ; simp add: particular_struct_morphism_image_simps)
+    subgoal G1 by blast
+    subgoal G2 by blast
+    subgoal G3 by (intro ext ; blast)
+    subgoal G4 by (intro ext ; blast)
+    by (intro ext ; blast)
+  have G[simp]: \<open>g (\<phi> (f.inv_morph (f x))) = g (\<phi> x)\<close>
+    by auto  
+  have H[simp]: \<open>(g \<circ> \<phi> \<circ> f.inv_morph) ` f ` w  = g ` \<phi> ` w\<close>
+    apply (subst image_comp[of \<open>g \<circ> \<phi>\<close> f.inv_morph \<open>f ` w\<close>,symmetric])
+    apply (subst w_inv_f)
+    using image_comp by metis
   show ?thesis
-    by (simp only: invariant_under_isomorphisms_A[
-      OF phi_zf.particular_struct_bijection_1_axioms, OF C D,of U
-      ] o_apply image_comp[symmetric] x_inv_f w_inv_f
-      ; simp)
+    apply (subst invariant_under_isomorphisms_A[of _ \<open>g \<circ>\<^bsub>f.tgt.endurants\<^esub> \<phi> \<circ>\<^bsub>f.tgt.endurants\<^esub> f.inv_morph\<close>,OF phi_zf.particular_struct_bijection_1_axioms C D])    
+    apply (subst map_comp_3_img[of \<open>f ` w\<close> \<open>f.tgt.\<P>\<close> g \<phi> f.inv_morph,
+          OF E])
+    apply (subst  map_comp_3_app[of _ \<open>f.tgt.\<P>\<close> g \<phi> f.inv_morph,OF f_x])
+    by (subst F ; subst G ; subst H ; simp)
 qed
-
+   
 
 end
 
@@ -177,7 +220,7 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 text_raw \<open>\par\<close>
 definition iof (\<open>_ \<Colon>\<^bsub>_\<^esub> _\<close> [74,1,74] 75) where
   \<open>x \<Colon>\<^bsub>w\<^esub> U \<longleftrightarrow> 
-    (\<exists>f. inj_on f \<P> \<and> x \<in> \<P> 
+    (\<exists>f. inj_on f \<P> \<and> f \<in> extensional \<P> \<and> undefined \<notin> f ` \<P> \<and> x \<in> \<P> 
        \<and> w \<in> \<W> 
        \<and> zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U)\<close>
 
@@ -189,7 +232,7 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 \<close>
 text_raw \<open>\par\<close>
 lemma  \<^marker>\<open>tag (proof) aponly\<close> iof_I[intro]:
-  assumes \<open>inj_on f \<P>\<close> \<open>w \<in> \<W>\<close> \<open>x \<in> \<P>\<close> \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close>
+  assumes \<open>inj_on f \<P>\<close> \<open>w \<in> \<W>\<close> \<open>x \<in> \<P>\<close> \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close> \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
   shows \<open>x \<Colon>\<^bsub>w\<^esub> U\<close>
   using assms by (auto simp: iof_def)
 
@@ -198,6 +241,7 @@ lemma  \<^marker>\<open>tag (proof) aponly\<close> iof_E1:
   obtains f where 
     \<open>inj_on f \<P>\<close> \<open>w \<in> \<W>\<close> \<open>x \<in> \<P>\<close>  
     \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close>
+    \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
   using assms by (auto simp: iof_def)
 
 lemma  \<^marker>\<open>tag (proof) aponly\<close> iof_scope_world:
@@ -232,18 +276,21 @@ lemma  \<^marker>\<open>tag (proof) aponly\<close> iof_E[elim]:
   obtains f where 
     \<open>inj_on f \<P>\<close> \<open>x \<in> \<P>\<close> \<open>w \<in> \<W>\<close> \<open>U \<in> \<U>\<close> 
     \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close> \<open>x \<in> w\<close>
+    \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
 proof -
   obtain f where 
     A: \<open>inj_on f \<E>\<close> \<open>w \<in> \<W>\<close> \<open>x \<in> \<P>\<close> 
        \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close>
-    using assms iof_E1 by blast
+       \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
+    using assms iof_E1 by metis
   have B: \<open>U \<in> \<U>\<close> using assms by blast
   interpret f: particular_struct_bijection_1 \<Gamma> f 
     apply simp
-    using A(1) inj_on_id by blast  
+    using A(1,5,6) inj_on_id by blast  
   obtain \<open>f ` w \<in> f.\<W>\<^sub>\<phi>\<close> \<open>f x \<in> f ` w\<close> 
     using zf_iof_scope[OF A(4)] by metis
-  then have \<open>x \<in> w\<close> using A(2,3)f.tgt_world_corresp_inv_image by force
+  then have \<open>x \<in> w\<close> using A(2,3)f.tgt_world_corresp_inv_image      
+      by (metis \<Gamma>_simps(2) f.phi_inv_phi_world f.world_corresp_E)
   then show ?thesis using A B that  by metis
 qed
       
@@ -280,12 +327,14 @@ lemma  \<^marker>\<open>tag (proof) aponly\<close> iof_E[elim]:
   assumes \<open>x \<Colon>\<^bsub>w\<^esub> U\<close>
   obtains f where 
     \<open>inj_on f \<P>\<close> \<open>x \<in> \<P>\<close> \<open>w \<in> \<W>\<close> \<open>U \<in> \<U>\<close> 
-    \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close>  
+    \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close> 
+    \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
 proof -
   obtain f where 
     A: \<open>inj_on f \<E>\<close> \<open>w \<in> \<W>\<close> \<open>x \<in> \<P>\<close> 
        \<open>zf_iof (MorphImg f \<Gamma>) (f x) (f ` w) U\<close>
-    using assms iof_E1 by blast
+       \<open>f \<in> extensional \<P>\<close> \<open>undefined \<notin> f ` \<P>\<close>
+    using assms iof_E1 by metis
   have B: \<open>U \<in> \<U>\<close> using assms by blast
   show ?thesis using A B that by metis
 qed

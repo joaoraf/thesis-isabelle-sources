@@ -279,6 +279,11 @@ proof(simp only: morph_image_particulars ; simp only: morph_image_worlds_src
     by blast
   then show "\<exists>P\<in>src.\<W>. \<phi> xa \<notin> \<phi> ` P"
     using f3 f2 a1 by (metis possible_worlds_sig.\<P>_I)
+next
+  fix w
+  assume as: \<open>w \<in> \<W>\<^sub>\<phi>\<close>
+  then show \<open>undefined \<notin> w\<close>     
+    using morph_image_particulars undefined_not_in_img by blast
 qed
   
 
@@ -449,9 +454,21 @@ interpretation img1: particular_struct \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<
   using B(2)[simplified qualified_particulars_def] by metis
 
 interpretation src_to_img1_morph: pre_particular_struct_morphism \<Gamma>\<^sub>1 \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<close> 
-  by (unfold_locales 
+(*  by (unfold_locales 
       ; (simp only: morph_image_particulars morph_image_inheres_in morph_image_towards morph_image_assoc_quale)? 
-      ; simp ; blast)
+      ; simp ; blast) *)
+  apply unfold_locales
+  subgoal G1 using morph_image_substantials by auto
+  subgoal G2 using morph_image_moments by auto
+  subgoal G3 by blast
+  subgoal G4 by simp
+  subgoal G5 using morph_image_inheres_in by auto
+  subgoal G6 using morph_image_towards by auto
+  subgoal G7 by (meson morph_does_not_add_towards morph_image_towards)
+  subgoal G8 using morph_image_assoc_quale by auto
+  done
+
+  
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> src_to_img1_world_corresp: \<open>src_to_img1_morph.world_corresp w\<^sub>s w\<^sub>t \<longleftrightarrow> w\<^sub>s \<in> src.\<W> \<and> w\<^sub>t = \<phi> ` w\<^sub>s\<close>
 proof -

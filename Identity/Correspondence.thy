@@ -91,14 +91,25 @@ end
 notation \<^marker>\<open>tag aponly\<close> isomorphic_pair_of_particular_structures (infix \<open>\<simeq>\<^sub>i\<close> 75)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close>  isomorphic_pair_of_particular_structures_refl[intro]:
-  assumes \<open>particular_struct \<Gamma>\<close>
-  shows \<open>\<Gamma> \<simeq>\<^sub>i \<Gamma>\<close>
-  apply (simp add: isomorphic_pair_of_particular_structures_def assms)
-  apply unfold_locales
-  apply (intro exI[of _ \<open>id\<close>] ; simp)
-  by (metis assms particular_struct_def particular_struct_eqI 
-      ufo_particular_theory.id_is_isomorphism ufo_particular_theory_sig.\<Gamma>_simps)
-
+  assumes \<open>particular_struct \<Gamma>\<^sub>1\<close>
+  shows \<open>\<Gamma>\<^sub>1 \<simeq>\<^sub>i \<Gamma>\<^sub>1\<close>
+proof -
+  interpret particular_struct \<Gamma>\<^sub>1 using assms .
+  have A: \<open>particulars \<Gamma> = \<P>\<close> by auto
+  have B: \<open>\<Gamma>\<^sub>1 = \<Gamma>\<close> by auto
+  show ?thesis
+    apply (simp add: isomorphic_pair_of_particular_structures_def assms)
+    apply unfold_locales    
+    apply (intro exI[of _ \<open>id_on \<P>\<close>] conjI)
+    subgoal       
+      apply (insert id_is_isomorphism[simplified A])
+      by (simp only: B[symmetric])
+    subgoal 
+      apply (insert morph_img_eq)
+      by (simp only: B[symmetric])
+    done
+qed
+ 
 lemma \<^marker>\<open>tag (proof) aponly\<close> isomorphic_pair_of_particular_structures_sym[sym]:
   assumes \<open>\<Gamma>\<^sub>1 \<simeq>\<^sub>i \<Gamma>\<^sub>2\<close>
   shows \<open>\<Gamma>\<^sub>2 \<simeq>\<^sub>i \<Gamma>\<^sub>1\<close>
@@ -132,7 +143,7 @@ proof -
     using P23.pi_isomorphism .
   have A: \<open>\<Gamma>\<^sub>3 = MorphImg P23.\<pi> (MorphImg P12.\<pi> \<Gamma>\<^sub>1)\<close>    
     using P12.Gamma2_eq P23.Gamma2_eq by auto
-  interpret P13: particular_struct_bijection_1 \<open>\<Gamma>\<^sub>1\<close> \<open>P23.\<pi> \<circ> P12.\<pi>\<close>
+  interpret P13: particular_struct_bijection_1 \<open>\<Gamma>\<^sub>1\<close> \<open>P23.\<pi> \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> P12.\<pi>\<close>
     apply (rule particular_struct_bijection_1_comp)
     subgoal using pi12.particular_struct_bijection_1_axioms by auto
     subgoal using P12.Gamma2_eq pi23.particular_struct_bijection_1_axioms by auto
@@ -140,12 +151,11 @@ proof -
       
   show \<open>?thesis\<close>
     apply (unfold_locales)
-    apply (intro exI[of _ \<open>P23.\<pi> \<circ> P12.\<pi>\<close>] conjI P13.particular_struct_bijection_1_axioms  
+    apply (intro exI[of _ \<open>P23.\<pi> \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> P12.\<pi>\<close>] conjI P13.particular_struct_bijection_1_axioms  
               ; (simp)?)
     using A by metis
 qed
     
-
 context ufo_particular_theory_sig
 begin
 
@@ -174,46 +184,67 @@ proof -
       using tgt.\<Gamma>_simps(2) tgt_Gamma_eq_Morph_img by auto
   obtain P where P: \<open>x \<in> src.\<P>\<close> \<open>identity_pred src.\<Gamma> P x\<close>
     using assms(1) by blast
-  obtain \<omega>\<^sub>1 :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where \<omega>\<^sub>1: \<open>inj \<omega>\<^sub>1\<close> using src.injection_to_ZF_exist by blast
-  obtain \<omega>\<^sub>2 :: \<open>'p\<^sub>2 \<Rightarrow> ZF\<close> where \<omega>\<^sub>2: \<open>inj \<omega>\<^sub>2\<close> using tgt.injection_to_ZF_exist by blast
+
+  obtain \<omega>\<^sub>1 :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where \<omega>\<^sub>1:
+      \<open>inj_on \<omega>\<^sub>1 src.\<P>\<close> 
+      \<open>\<omega>\<^sub>1 \<in> extensional src.\<P>\<close>
+      \<open>undefined \<notin> \<omega>\<^sub>1 ` src.\<P>\<close>
+    using inj_zf_to_delimited_func src.injection_to_ZF_exist
+    by metis
+
+  obtain \<omega>\<^sub>2 :: \<open>'p\<^sub>2 \<Rightarrow> ZF\<close> where \<omega>\<^sub>2:
+      \<open>inj_on \<omega>\<^sub>2 tgt.\<P>\<close> 
+      \<open>\<omega>\<^sub>2 \<in> extensional tgt.\<P>\<close>
+      \<open>undefined \<notin> \<omega>\<^sub>2 ` tgt.\<P>\<close>
+    using inj_zf_to_delimited_func tgt.injection_to_ZF_exist
+    by metis
+
   have A: \<open>\<omega>\<^sub>1 \<in> BijMorphs1\<^bsub>src.\<Gamma>,TYPE(ZF)\<^esub>\<close>
     apply (simp ; safe)
     subgoal using \<omega>\<^sub>1 inj_on_subset by auto
-    using inj_on_id by blast
+    subgoal using inj_on_id by blast
+    using \<omega>\<^sub>1 by blast+
+
   have tgt_G: \<open>tgt.\<Gamma> = MorphImg \<phi> src.\<Gamma>\<close> 
     using tgt_Gamma_eq_Morph_img by blast
 
   interpret omega1: particular_struct_bijection_1 \<open>src.\<Gamma>\<close> \<omega>\<^sub>1 \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE(ZF)\<close>
     apply (intro src.inj_morph_img_isomorphism)
     subgoal using \<omega>\<^sub>1 inj_on_subset by auto
-    using inj_on_id by blast
+    subgoal using inj_on_id by blast
+    using \<omega>\<^sub>1 by blast+
 
   interpret omega2: particular_struct_bijection_1 \<open>MorphImg \<phi> src.\<Gamma>\<close> \<omega>\<^sub>2 \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE(ZF)\<close>
     apply (intro tgt.inj_morph_img_isomorphism[simplified tgt_G])
     subgoal using \<omega>\<^sub>2 inj_on_subset by blast
-    using inj_on_id by blast
+    subgoal using inj_on_id by blast
+    using \<omega>\<^sub>2 by blast+
 
-  obtain Pi: \<open>\<And>\<Gamma>' \<phi> y. \<Gamma>' \<in> IsoModels\<^bsub>src.\<Gamma>,TYPE(ZF)\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>src.\<Gamma>,\<Gamma>'\<^esub> \<Longrightarrow> P \<Gamma>' y = (\<forall>z\<in>phi1.src.endurants. (y = \<phi> z) = (z = x))\<close>
+  obtain Pi: \<open>\<And>\<Gamma>' \<phi> y. \<Gamma>' \<in> IsoModels\<^bsub>src.\<Gamma>,TYPE(ZF)\<^esub> \<Longrightarrow> 
+                        \<phi> \<in> Morphs\<^bsub>src.\<Gamma>,\<Gamma>'\<^esub> \<Longrightarrow> 
+              P \<Gamma>' y = (\<forall>z\<in>phi1.src.endurants. (y = \<phi> z) = (z = x))\<close>
     using P(2)[THEN identity_pred_E] by metis
-  have B: \<open>\<omega>\<^sub>1 \<circ> \<phi>\<inverse> \<circ> \<phi>\<^sub>1 \<in> Morphs\<^bsub>src.\<Gamma>,MorphImg \<omega>\<^sub>1 src.\<Gamma>\<^esub>\<close>
-    apply (intro morphs_I 
-        particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close>] 
-        particular_struct_morphism_comp[of _ \<open>src.\<Gamma>\<close>])
-    subgoal using assms(2) by blast
-    subgoal 
+  have src_end: \<open>src.endurants = particulars src.\<Gamma>\<close> by simp
+  have B: \<open>\<omega>\<^sub>1 \<circ>\<^bsub>src.\<P>\<^esub> \<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<phi>\<^sub>1 \<in> Morphs\<^bsub>src.\<Gamma>,MorphImg \<omega>\<^sub>1 src.\<Gamma>\<^esub>\<close>
+    apply (simp ; simp only: src_end)
+    apply (intro particular_struct_morphism_comp[of _ \<Gamma>\<^sub>1 _ \<open>MorphImg \<omega>\<^sub>1 src.\<Gamma>\<close>])
+    subgoal
+      apply (intro particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close> _ \<Gamma>\<^sub>1])
+      subgoal using phi1.particular_struct_morphism_axioms .
       by (metis particular_struct_eqI particular_struct_bijection.inv_is_bijective_morphism 
             particular_struct_bijection_1_axioms 
             particular_struct_bijection_def 
             particular_struct_bijection_iff_particular_struct_bijection_1 
-            particular_struct_injection_def ufo_particular_theory_sig.\<Gamma>_simps) 
-    using A particular_struct_bijection_1_def particular_struct_injection_def by blast
-
+            particular_struct_injection_def ufo_particular_theory_sig.\<Gamma>_simps)    
+    by (metis omega1.particular_struct_morphism_axioms particular_struct_eqI src.\<Gamma>_simps(1) 
+        src.\<Gamma>_simps(2) src.\<Gamma>_simps(3) src.\<Gamma>_simps(4) src.\<Gamma>_simps(5))  
+    
   have COND2: \<open>MorphImg \<omega>\<^sub>1 src.\<Gamma> \<in> IsoModels\<^bsub>src.\<Gamma>,TYPE(ZF)\<^esub>\<close>    
     using A by blast
   have COND3: \<open>\<omega>\<^sub>1 \<in> Morphs\<^bsub>src.\<Gamma>,MorphImg \<omega>\<^sub>1 src.\<Gamma>\<^esub>\<close>        
     using omega1.particular_struct_morphism_axioms by blast
   have COND4: \<open>\<forall>z\<in>src.\<P>. (\<omega>\<^sub>1 x = \<omega>\<^sub>1 z) = (z = x)\<close> 
-    using \<omega>\<^sub>1[THEN injD] by auto
+    using \<omega>\<^sub>1(1)[THEN inj_onD] \<open>x \<in> src.\<P>\<close> by auto
   note R1 = Pi[of \<open>MorphImg \<omega>\<^sub>1 src.\<Gamma>\<close> _ \<open>\<omega>\<^sub>1 x\<close>,OF COND2]
   have P_1: \<open>P (MorphImg \<omega>\<^sub>1 src.\<Gamma>) (\<omega>\<^sub>1 x)\<close>
     using R1[of \<omega>\<^sub>1,OF COND3,simplified] COND4 by auto
@@ -222,23 +253,31 @@ proof -
     \<open>z \<in> src.\<P>\<close> for \<phi>' z
     using that Pi[of \<open>MorphImg \<omega>\<^sub>1 src.\<Gamma>\<close> _ \<open>\<omega>\<^sub>1 x\<close>,simplified P_1 simp_thms,
         rule_format,OF COND2] by auto
+  have P_2_1: \<open>\<omega>\<^sub>1 x = (\<omega>\<^sub>1 (\<phi>\<inverse> (\<phi>\<^sub>1 z))) \<longleftrightarrow> z = x\<close>
+    if AA: \<open>z \<in> src.\<P>\<close> for z
+    using P_2[OF B,simplified, of z] compose_eq AA by metis
+  have P2_3: \<open>\<phi>\<inverse> (\<phi>\<^sub>1 z) \<in> src.endurants\<close> if AA: \<open>z \<in> src.\<P>\<close> for z
+    using AA phi1.morph_preserves_particulars phi1_tgt by force
   have P_3: \<open>x = \<phi>\<inverse> (\<phi>\<^sub>1 z) \<longleftrightarrow> z = x\<close> if AA: \<open>z \<in> src.\<P>\<close> for z
-    using P_2[OF B,simplified,OF AA] injD[OF \<omega>\<^sub>1] by auto
+    using P_2_1[OF AA] inj_onD[OF \<omega>\<^sub>1(1),of x \<open>\<phi>\<inverse> (\<phi>\<^sub>1 z)\<close>] P2_3 \<open>x \<in> src.\<P>\<close> by auto
 
   interpret phi_inv: particular_struct_bijection_1 \<open>MorphImg \<phi> src.\<Gamma>\<close> \<open>\<phi>\<inverse>\<close> \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
     apply (simp  only: tgt.isomorphism_1_iff_inj[simplified tgt_G] ; intro conjI)
-    subgoal by simp    
-    using \<omega>\<^sub>1 by blast      
-
+    subgoal by simp     
+    subgoal by (simp add: src.injection_to_ZF_exist)
+    subgoal by (metis Inv_extensional morph_is_surjective)    
+    by (metis I_img_eq_tgt_I phi_inv_img src.\<P>_E src.undefined_not_in_particulars)
+    
   have phi_inv_img_phi_img[simp]: \<open>MorphImg \<phi>\<inverse> (MorphImg \<phi> src.\<Gamma>) = src.\<Gamma>\<close>
     by (metis inv_is_bijective_morphism particular_struct_eqI particular_struct_bijection_iff_particular_struct_bijection_1 src.\<Gamma>_simps)
 
-  interpret phi_inv_phi: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<phi>\<^sub>1\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
-    by (intro  particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close>]
-        phi1.particular_struct_morphism_axioms
-        phi_inv.particular_struct_morphism_axioms[simplified phi_inv_img_phi_img])
+  interpret phi_inv_phi: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<phi>\<^sub>1\<close> 
+        \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
+    apply (intro particular_struct_morphism_comp[of src.\<Gamma> \<open>MorphImg \<phi> src.\<Gamma>\<close>,simplified])
+    subgoal by intro_locales    
+    using phi_inv.particular_struct_morphism_axioms by auto
   
-  interpret phi_inv_phi_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<phi>\<^sub>1\<close>
+  interpret phi_inv_phi_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<phi>\<^sub>1\<close>
     by (intro_locales)
   
   note ident_pred_I = src.identity_respects_isomorphisms[OF P(2),simplified tgt_G]
@@ -251,19 +290,24 @@ proof -
   proof -
     interpret sigma: particular_struct_morphism src.\<Gamma> \<open>MorphImg \<phi> src.\<Gamma>\<close> \<sigma>
       using as(1) by blast
+    
     note AA = as(2)[simplified phi_inv_phi_auto_endurants]
 
-    interpret phi_inv_sigma: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<sigma>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
-      by (intro particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close>]
-                sigma.particular_struct_morphism_axioms
-                phi_inv.particular_struct_morphism_axioms[simplified phi_inv_img_phi_img])
-    interpret phi_inv_sigma_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<sigma>\<close> 
+    interpret phi_inv_sigma: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
+      apply (intro particular_struct_morphism_comp[of src.\<Gamma> \<open>MorphImg \<phi> src.\<Gamma>\<close> _ src.\<Gamma>,simplified])
+      subgoal using sigma.particular_struct_morphism_axioms .      
+      using phi_inv.particular_struct_morphism_axioms by auto 
+
+    interpret phi_inv_sigma_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma>\<close> 
       by (intro_locales)
-    have phi_inv_sigma_in_auto: \<open>\<phi>\<inverse> \<circ> \<sigma> \<in> EndoMorphs\<^bsub>src.\<Gamma>\<^esub>\<close>
+    have phi_inv_sigma_in_auto: \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma> \<in> EndoMorphs\<^bsub>src.\<Gamma>\<^esub>\<close>
       using phi_inv_sigma_auto.particular_struct_endomorphism_axioms by blast
 
     have x_const_phi1[simp]: \<open>\<phi>\<inverse> (\<phi>\<^sub>1 x) = x\<close> using P_3[OF \<open>x \<in> src.\<P>\<close>] by simp
-    have x_const_sigma[simp]: \<open>\<phi>\<inverse> (\<sigma> x) = x\<close> using np_x_E[OF phi_inv_sigma_in_auto,simplified,OF \<open>x \<in> src.\<P>\<close>] by simp
+    have x_const_sigma[simp]: \<open>\<phi>\<inverse> (\<sigma> x) = x\<close> 
+      using np_x_E[OF phi_inv_sigma_in_auto,simplified]
+          compose_eq \<open>x \<in> src.\<P>\<close>
+      by metis
     have omega2_src_end[simp]: \<open>omega2.src.endurants = tgt.\<P>\<close>      
       using phi1_tgt by blast 
     obtain DD: \<open>\<phi>\<^sub>1 z \<in> tgt.endurants\<close> \<open>\<sigma> z \<in> tgt.endurants\<close>
@@ -280,8 +324,9 @@ proof -
     note ident_pred_I[of \<phi>,
             THEN identity_pred_E]
     show ?thesis
-      apply simp       
-      using AA np_x_E phi_inv_sigma_in_auto by force
+      apply simp             
+      by (metis AA BB compose_eq np_x_E 
+              phi_inv_sigma_in_auto x_const_phi1)
   qed
   have case2: \<open>\<exists>!y. \<forall>\<sigma>\<in>Morphs\<^bsub>src.\<Gamma>,MorphImg \<phi> src.\<Gamma>\<^esub>.
             \<forall>z\<in>omega1.src.endurants. (\<sigma> z = y) = (z = x)\<close>
@@ -309,29 +354,51 @@ proof -
       using as(1) by blast
     note AA = as(2)[simplified phi_inv_phi_auto_endurants]
 
-    interpret phi_inv_sigma: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<sigma>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
-      by (intro particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close>]
-                sigma.particular_struct_morphism_axioms
-                phi_inv.particular_struct_morphism_axioms[simplified phi_inv_img_phi_img])
-    interpret phi_inv_sigma_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ> \<sigma>\<close> 
+    interpret phi_inv_sigma: particular_struct_morphism src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
+      
+      apply (intro  particular_struct_morphism_comp[
+            of src.\<Gamma>,simplified, of \<open>MorphImg \<phi> src.\<Gamma>\<close>] )
+      subgoal
+        using sigma.particular_struct_morphism_axioms .
+      subgoal using
+                phi_inv.particular_struct_morphism_axioms[simplified phi_inv_img_phi_img] .
+      done
+
+    interpret phi_inv_sigma_auto: particular_struct_endomorphism src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma>\<close> 
       by (intro_locales)
-    have phi_inv_sigma_in_auto: \<open>\<phi>\<inverse> \<circ> \<sigma> \<in> EndoMorphs\<^bsub>src.\<Gamma>\<^esub>\<close>
+    have phi_inv_sigma_in_auto: 
+      \<open>\<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<sigma> \<in> EndoMorphs\<^bsub>src.\<Gamma>\<^esub>\<close>
       using phi_inv_sigma_auto.particular_struct_endomorphism_axioms by blast
 
-    have COND3: \<open>particular_struct_morphism src.\<Gamma> (MorphImg \<omega>\<^sub>1 src.\<Gamma>) (\<omega>\<^sub>1 \<circ> \<phi>\<inverse> \<circ> \<phi>)\<close>
-      apply (intro 
-            particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> src.\<Gamma>\<close>]
-            particular_struct_morphism_comp[of _ \<open>src.\<Gamma>\<close>])
-      subgoal using particular_struct_bijection_1.phi_in_iso_morphs particular_struct_bijection_1_axioms particular_struct_bijection_1_def particular_struct_injection_def by blast
-      subgoal using phi_inv.particular_struct_morphism_axioms by auto      
-      by (simp add: omega1.particular_struct_morphism_axioms)
+    have COND3: \<open>particular_struct_morphism src.\<Gamma> (MorphImg \<omega>\<^sub>1 src.\<Gamma>) (\<omega>\<^sub>1 \<circ>\<^bsub>src.\<P>\<^esub> \<phi>\<inverse> \<circ>\<^bsub>src.\<P>\<^esub> \<phi>)\<close>      
+      apply (intro particular_struct_morphism_comp[
+          of src.\<Gamma> src.\<Gamma> \<open>\<phi>\<inverse> \<circ>\<^bsub>src.endurants\<^esub> \<phi>\<close> \<open>MorphImg \<omega>\<^sub>1 src.\<Gamma>\<close> \<omega>\<^sub>1, simplified])
+      subgoal   
+        apply (subst src_end)        
+        by (metis particular_struct_bijection_1_axioms 
+            particular_struct_bijection_1_def 
+            particular_struct_eqI 
+            particular_struct_injection_def 
+            particular_struct_morphism_comp 
+            phi_inv.particular_struct_morphism_axioms 
+            phi_inv_img_phi_img src.\<Gamma>_simps(2) 
+            ufo_particular_theory_sig.\<Gamma>_simps(1) 
+            ufo_particular_theory_sig.\<Gamma>_simps(3) 
+            ufo_particular_theory_sig.\<Gamma>_simps(4) 
+            ufo_particular_theory_sig.\<Gamma>_simps(5))
+      subgoal
+        using omega1.particular_struct_morphism_axioms 
+        by blast
+      done  
     
     have P_4: \<open>x = \<phi>\<inverse> (\<phi> z) \<longleftrightarrow> z = x\<close> if AA: \<open>z \<in> src.\<P>\<close> for z
-      using inv_into_f_f[OF morph_is_injective,simplified inv_morph_def[symmetric]
-          , OF AA] by metis
+      
+      using Inv_f_eq[OF morph_is_injective,OF AA] by metis
 
     have x_const_phi1[simp]: \<open>\<phi>\<inverse> (\<phi> x) = x\<close> using P_4[OF \<open>x \<in> src.\<P>\<close>] by simp
-    have x_const_sigma[simp]: \<open>\<phi>\<inverse> (\<sigma> x) = x\<close> using np_x_E[OF phi_inv_sigma_in_auto,simplified,OF \<open>x \<in> src.\<P>\<close>] by simp
+    have x_const_sigma[simp]: \<open>\<phi>\<inverse> (\<sigma> x) = x\<close> using 
+        np_x_E[OF phi_inv_sigma_in_auto]
+          compose_eq \<open>x \<in> src.\<P>\<close> by metis
     have omega2_src_end[simp]: \<open>omega2.src.endurants = tgt.\<P>\<close>      
       using phi1_tgt by blast 
     obtain DD: \<open>\<phi>\<^sub>1 z \<in> tgt.endurants\<close> \<open>\<sigma> z \<in> tgt.endurants\<close>

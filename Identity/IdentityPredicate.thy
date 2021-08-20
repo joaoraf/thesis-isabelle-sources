@@ -140,66 +140,76 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> identity_pred_E':
   by (simp add: identity_pred_def) 
   
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_unique_1:  
-  fixes \<Gamma> :: \<open>('p,'q) particular_struct\<close> and \<sigma> :: \<open>'p \<Rightarrow> ZF\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_unique_1:    
+  fixes \<Gamma> :: \<open>('p,'q) particular_struct\<close> and \<sigma> :: \<open>'p \<Rightarrow> ZF\<close> and f
   assumes 
     \<open>identity_pred \<Gamma> P\<^sub>1 x\<close> 
     \<open>identity_pred \<Gamma> P\<^sub>2 x\<close>
     \<open>particular_struct_bijection \<Gamma> \<Gamma>' \<phi>\<close>
-    and \<sigma>: \<open>inj \<sigma>\<close>
+    and \<sigma>: \<open>inj_on \<sigma> (particulars \<Gamma>')\<close> 
+        \<open>\<sigma> \<in> extensional (particulars \<Gamma>')\<close>
+        \<open>undefined \<notin> \<sigma> ` (particulars \<Gamma>')\<close>
   shows \<open>P\<^sub>1 (MorphImg \<sigma> \<Gamma>') y = P\<^sub>2 (MorphImg \<sigma> \<Gamma>') y\<close>
 proof -    
-  have sigma[dest!,simp]: \<open>\<sigma> x = \<sigma> y \<Longrightarrow> x = y\<close> for x y 
-    using injD \<sigma> by metis
+  have sigma[dest!,simp]: 
+    \<open>\<sigma> x = \<sigma> y \<Longrightarrow> x = y\<close> 
+    if \<open>x \<in> particulars \<Gamma>'\<close> \<open>y \<in> particulars \<Gamma>'\<close> for x y 
+    using inj_onD \<sigma> that by metis
   have Gamma1[simp]: \<open>\<Gamma>' = MorphImg \<phi> \<Gamma>\<close> 
     using assms(3)
     by (meson isomorphism_iff_isomorphism_to_morphimg)
-  interpret I1: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close>
+  interpret I1: particular_struct_bijection_1 \<Gamma> \<phi>
     using assms(3) 
     by (simp add: 
           particular_struct_bijection_iff_particular_struct_bijection_1)
-  have I1_src_gamma[simp]: \<open>I1.src.\<Gamma> = \<Gamma>\<close>  by simp  
-  interpret IS2:  particular_struct \<open>MorphImg (\<sigma> \<circ> \<phi>) I1.src.\<Gamma>\<close>
+  have I1_src_gamma[simp]: \<open>I1.src.\<Gamma> = \<Gamma>\<close> by simp  
+  interpret IS2:  particular_struct \<open>MorphImg (\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>) I1.src.\<Gamma>\<close>
     apply (intro I1.src.inj_morph_img_valid_structure)
     subgoal G1
-      apply (intro comp_inj_on)
+      apply (intro inj_comp_map)
       subgoal G1_1 by simp
       subgoal G2_2
-        apply (auto simp: possible_worlds_sig.\<P>_def)
-        by (intro inj_onI ; simp)
+        apply (auto simp: possible_worlds_sig.\<P>_def)        
+        using Gamma1 I1.I_img_eq_tgt_I I1.morph_image_def I1.src.\<P>_def \<sigma>(1) by presburger
       done
     subgoal G2 
       by (rule exI[of _ \<open>id\<close>] ; simp)
+    subgoal 
+      apply (intro notI ; elim imageE ; simp add: compose_eq)      
+      using Gamma1 \<sigma>(3) by blast      
     done
   have simp1[simp]: \<open>particular_struct (MorphImg \<sigma> (MorphImg \<phi> \<Gamma>))\<close>
     using IS2.particular_struct_axioms 
     by (simp add: fcomp_def)
   have simp_worlds_img_img: 
       \<open>(\<sigma> ` \<phi> ` w\<^sub>1 = \<sigma> ` \<phi> ` w\<^sub>2) \<longleftrightarrow> (w\<^sub>1 = w\<^sub>2)\<close> 
-      if \<open>w\<^sub>1 \<in> I1.src.\<W>\<close> \<open>w\<^sub>2 \<in> I1.src.\<W>\<close> for w\<^sub>1 w\<^sub>2        
-    by (metis I1.phi_inv_phi_world \<sigma> inj_image_eq_iff that(1) that(2))
+      if \<open>w\<^sub>1 \<in> I1.src.\<W>\<close> \<open>w\<^sub>2 \<in> I1.src.\<W>\<close> for w\<^sub>1 w\<^sub>2            
+    apply (intro inj_on_image_eq_iff[where A=w\<^sub>1 and B=w\<^sub>2 and f=\<open>\<sigma> \<circ> \<phi>\<close> and C = \<open>particulars \<Gamma>\<close>
+        , simplified image_comp[symmetric]] comp_inj_on I1.src.worlds_are_made_of_particulars that)
+    subgoal by simp    
+    using Gamma1 I1.I_img_eq_tgt_I I1.morph_image_def \<sigma>(1) by presburger
+
   have I1_tgt_gamma: \<open>I1.tgt.\<Gamma> = MorphImg \<phi> \<Gamma>\<close>    
     using I1.tgt_Gamma_eq_Morph_img by auto
   interpret sigma: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<close> \<sigma>
     apply (intro I1.tgt.inj_morph_img_isomorphism[simplified I1_tgt_gamma])
     subgoal by (simp add: inj_onI)    
-    by (simp add: IS2.injection_to_ZF_exist)
+    using \<sigma> by (simp add: IS2.injection_to_ZF_exist)+
     
-  have sigma_phi: \<open>\<sigma> \<circ> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> 
+  have sigma_phi: \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> 
     by (intro bijections_I particular_struct_bijection_1_comp
         I1.particular_struct_bijection_1_axioms
         sigma.particular_struct_bijection_1_axioms
           )
 
-  have sigma_phi_img: \<open>MorphImg (\<sigma> \<circ> \<phi>) \<Gamma> \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>    
+  have sigma_phi_img: \<open>MorphImg (\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>) \<Gamma> \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>    
     using sigma_phi by blast
 
-  have sigma_phi_morph: \<open>\<sigma> \<circ> \<phi> \<in> Morphs\<^bsub>\<Gamma>,MorphImg (\<sigma> \<circ> \<phi>) \<Gamma>\<^esub>\<close>    
+  have sigma_phi_morph: \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi> \<in> Morphs\<^bsub>\<Gamma>,MorphImg (\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>) \<Gamma>\<^esub>\<close>    
     by (meson bijections1_are_morphisms sigma_phi)
 
-  show \<open>?thesis\<close>
+  show ?thesis
   proof (simp)
-    fix y  
     obtain P\<^sub>1:           
               \<open>\<And>\<Gamma>' \<phi> y. \<lbrakk> 
           \<Gamma>' \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub> ;  
@@ -212,8 +222,8 @@ proof -
           \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>
          \<rbrakk> \<Longrightarrow>  P\<^sub>2 \<Gamma>' y \<longleftrightarrow> (\<forall>z \<in> particulars \<Gamma>. y = \<phi> z \<longleftrightarrow> z = x)\<close> 
       using identity_pred_E[OF assms(2)] by metis
-    note Q1 = P\<^sub>1[OF sigma_phi_img,of \<open>\<sigma> \<circ> \<phi>\<close>,OF sigma_phi_morph]
-    note Q2 = P\<^sub>2[OF sigma_phi_img,of \<open>\<sigma> \<circ> \<phi>\<close>,OF sigma_phi_morph]
+    note Q1 = P\<^sub>1[OF sigma_phi_img,of \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<close>,OF sigma_phi_morph]
+    note Q2 = P\<^sub>2[OF sigma_phi_img,of \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<close>,OF sigma_phi_morph]
     show \<open>P\<^sub>1 (MorphImg \<sigma> (MorphImg \<phi> \<Gamma>)) y = P\<^sub>2 (MorphImg \<sigma> (MorphImg \<phi> \<Gamma>)) y\<close>
       apply (intro iffI)
       subgoal using Q1[of \<open>y\<close>] Q2(1) by simp
@@ -225,8 +235,11 @@ qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> morph_img_comp_1[simp]: 
   \<open>MorphImg \<phi>\<^sub>1 \<circ> MorphImg \<phi>\<^sub>2 = MorphImg (\<phi>\<^sub>1 \<circ> \<phi>\<^sub>2)\<close>
-  by (intro ext ; simp)
-
+  apply (intro ext)
+  subgoal for \<Gamma>
+    apply (cases \<Gamma> ; hypsubst_thin ; auto simp add: MorphImg_def)
+    by (intro ext iffI ; elim exE conjE ; hypsubst_thin ; blast)+
+  done
 
 context ufo_particular_theory
 begin
@@ -258,21 +271,31 @@ proof -
   have B: \<open>I2.tgt.\<Gamma> = MorphImg \<phi> \<Gamma>\<close>    
     apply (intro particular_struct_eqI)
     by (simp_all only: I2.tgt.\<Gamma>_def particular_struct.simps)  
-  obtain f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where f: \<open>inj f\<close> 
-    using I2.tgt.injection_to_ZF_exist by blast
+  have part_\<Gamma>: \<open>particulars \<Gamma> = \<E>\<close>
+    by simp
+  obtain f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where f:
+      \<open>inj_on f (\<phi> ` \<E>)\<close> 
+      \<open>f \<in> extensional (\<phi> ` \<E>)\<close>
+      \<open>undefined \<notin> f ` (\<phi> ` \<E>)\<close>
+    using inj_zf_to_delimited_func I2.tgt.injection_to_ZF_exist 
+    by metis
+  have I2_tgt_P: \<open>I2.tgt.endurants = \<phi> ` \<E>\<close>     
+    using I2.morph_is_surjective[simplified part_\<Gamma>] by presburger
   have \<open>f \<in> BijMorphs1\<^bsub>MorphImg \<phi> \<Gamma>,TYPE(ZF)\<^esub>\<close>
     apply (auto)
-    apply (intro I2.tgt.inj_morph_img_isomorphism[simplified B])
-    subgoal by (meson f injD inj_onI)    
+    apply (intro I2.tgt.inj_morph_img_isomorphism[simplified B] ;
+           (simp add: I2_tgt_P f)?)
     using inj_on_id by blast
+    
   then have C: \<open>BijMorphs1\<^bsub>MorphImg \<phi> \<Gamma>,TYPE(ZF)\<^esub> \<noteq> \<emptyset>\<close> by blast  
-  have D: \<open>\<phi>' \<circ> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> if
+  have D: \<open>\<phi>' \<circ>\<^bsub>\<E>\<^esub> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> if
     as: \<open>\<phi>' \<in> BijMorphs1\<^bsub>MorphImg \<phi> \<Gamma>,TYPE(ZF)\<^esub>\<close> for \<phi>'
   proof -
     interpret II1: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<close> \<open>\<phi>'\<close>
       using as by blast
     show \<open>?thesis\<close>
       apply (intro bijections_I)
+      apply (subst part_\<Gamma>[symmetric])
       apply (rule particular_struct_bijection_1_comp)
       subgoal        
         by (simp only: I2.particular_struct_bijection_1_axioms)      
@@ -285,35 +308,47 @@ proof -
     fix \<Gamma>' \<phi>' y'
     assume as3: \<open>\<Gamma>' \<in> IsoModels\<^bsub>MorphImg \<phi> \<Gamma>,TYPE(ZF)\<^esub>\<close> 
                 \<open>\<phi>' \<in> Morphs\<^bsub>MorphImg \<phi> \<Gamma>,\<Gamma>'\<^esub>\<close>
-    then have AA: \<open>\<phi>' \<circ> \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>\<close>      
+    then have AA: \<open>\<phi>' \<circ>\<^bsub>\<E>\<^esub> \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>\<close>      
       using I2.particular_struct_morphism_axioms 
-            particular_struct_morphism_comp 
+            particular_struct_morphism_comp[of \<Gamma>,simplified part_\<Gamma>]             
       by blast  
-    interpret phi'_phi: particular_struct_morphism \<open>\<Gamma>\<close> \<open>\<Gamma>'\<close> \<open>\<phi>' \<circ> \<phi>\<close>
+    interpret phi': particular_struct_morphism \<open>MorphImg \<phi> \<Gamma>\<close> \<Gamma>' \<phi>'
+      using as3(2) by simp
+    interpret phi'_phi: particular_struct_morphism \<Gamma> \<Gamma>' \<open>\<phi>' \<circ>\<^bsub>\<E>\<^esub> \<phi>\<close>
       using AA[THEN morphs_D] by simp
       
     obtain \<phi>\<^sub>1 where 
       phi1: \<open>\<phi>\<^sub>1 \<in> BijMorphs1\<^bsub>MorphImg \<phi> \<Gamma>,TYPE(ZF)\<^esub>\<close> 
             \<open>\<Gamma>' = MorphImg \<phi>\<^sub>1 (MorphImg \<phi> \<Gamma>)\<close>
       using as3(1) by blast
-    have BB: \<open>\<Gamma>' = MorphImg (\<phi>\<^sub>1 \<circ> \<phi>) \<Gamma>\<close> using phi1(2) by simp
-    have CC: \<open>\<phi>\<^sub>1 \<circ> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
+    have BB: \<open>\<Gamma>' = MorphImg (\<phi>\<^sub>1 \<circ>\<^bsub>\<E>\<^esub> \<phi>) \<Gamma>\<close> 
+      using phi1(2) 
+      by (metis I2.src.morph_img_comp \<Gamma>_simps(2))
+    interpret phi_1: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>\<^sub>1 using phi1(1) by blast
+    have CC: \<open>\<phi>\<^sub>1 \<circ>\<^bsub>\<E>\<^esub> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
       apply (simp ; safe)
+      subgoal using I2.morph_is_injective by auto
       subgoal 
-        apply (rule comp_inj_on)
-        subgoal using I2.morph_is_injective by auto
         by (metis I2.morph_is_surjective particular_struct_bijection_1_def
                   particular_struct_injection.morph_is_injective 
                   bijections_D
                   phi1(1) ufo_particular_theory_sig.\<Gamma>_simps(2))        
-      using inj_on_id by blast
-    interpret phi1_phi: particular_struct_bijection_1 \<Gamma> \<open>\<phi>\<^sub>1 \<circ> \<phi>\<close> 
+      subgoal using inj_on_id by blast
+      subgoal for x 
+        apply (simp add: compose_eq)
+        using I2.undefined_not_in_img 
+        apply (simp add: part_\<Gamma>)
+        using phi_1.undefined_not_in_img[simplified I2.morph_is_surjective[symmetric] part_\<Gamma>]
+        by blast
+      done
+    
+    interpret phi1_phi: particular_struct_bijection_1 \<Gamma> \<open>\<phi>\<^sub>1 \<circ>\<^bsub>\<E>\<^esub> \<phi>\<close> 
       using CC by blast
 
     have Gamma'_isomodel: \<open>\<Gamma>' \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
-      by (intro isomorphic_models_I[of \<open>\<phi>\<^sub>1 \<circ> \<phi>\<close>] BB CC)
+      by (intro isomorphic_models_I[of \<open>\<phi>\<^sub>1 \<circ>\<^bsub>\<E>\<^esub> \<phi>\<close>] BB CC)
 
-    have phi1_comp_phi_morphs[simp,intro!]: \<open>\<phi>\<^sub>1 \<circ> \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>\<close>      
+    have phi1_comp_phi_morphs[simp,intro!]: \<open>\<phi>\<^sub>1 \<circ>\<^bsub>\<E>\<^esub> \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>\<close>      
       using BB CC bijections1_are_morphisms by fastforce
 
     have ex_morph: \<open>\<exists>\<phi>\<in>BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>. \<Gamma>' = MorphImg \<phi> \<Gamma>\<close>      
@@ -327,16 +362,22 @@ proof -
       have inv_z_dom[simp]: \<open>I2.inv_morph z \<in> \<E>\<close> 
         using I2.phi_inv_scope as4(2) by auto
       have inv_z[simp]: \<open>\<phi> (I2.inv_morph z) = z\<close>
-        by (simp add: as4(2))
+        apply simp
+        apply (intro f_Inv_eq)
+        using  as4(2) I2_tgt_P by blast
+      have z_img[simp]: \<open>z \<in> \<phi> ` \<E>\<close>
+        using I2_tgt_P as4(2) by blast
+      then have inv_z[simp]: \<open>Inv \<E> \<phi> z \<in> \<E>\<close>        
+        using inv_z_dom by auto
       note R1= A(3)[THEN iffD1, rule_format,OF _ phi1_comp_phi_morphs
                   ,where z=\<open>I2.inv_morph z\<close>,simplified
-                  ,OF ex_morph as4(1),simplified]                     
-                  
+                  ,OF ex_morph as4(1),simplified compose_eq[OF inv_z], simplified]                           
       note R2= A(3)[THEN iffD1, rule_format,OF _ AA,simplified
                 , OF ex_morph as4(1),of \<open>I2.inv_morph z\<close>,
-                   simplified]
-      have R3: \<open>\<phi>' z = \<phi>\<^sub>1 z\<close>  using R1 R2 by simp
-      note as4_1 =  as4[simplified R3]
+                   simplified compose_eq, simplified]
+      have R3: \<open>\<phi>' z = \<phi>\<^sub>1 z\<close>  
+        using R1 R2 by metis
+      note as4_1 = as4[simplified R3]
       show \<open>z = \<phi> x\<close>
         using as4_1 A(3)[THEN iffD1,OF _ _ as4_1(1),rule_format
               , simplified,OF ex_morph,of _ ] 
@@ -348,14 +389,16 @@ proof -
                   ,OF _ as4(1)]
       show \<open>y' = \<phi>' (\<phi> x)\<close>
         using R1 A(3) 
-        using AA Gamma'_isomodel as4(1) by auto
+        using AA Gamma'_isomodel as4(1) 
+        by (metis compose_eq phi'_phi.particular_struct_morphism_axioms x_E)
     next
       assume \<open>\<forall>z \<in> I2.tgt.\<P>. y' = \<phi>' z \<longleftrightarrow> z = \<phi> x\<close>
       then have as4: \<open>y' = \<phi>' z \<longleftrightarrow> z = \<phi> x\<close> if \<open>z \<in> I2.tgt.\<P>\<close> for z
         using that by metis
       note R1 = A(3)[THEN iffD2,of \<Gamma>' _ y',rule_format,simplified,
-                OF ex_morph,of \<open>\<phi>' \<circ> \<phi>\<close>,simplified,
-                OF phi'_phi.particular_struct_morphism_axioms]
+                OF ex_morph,of \<open>\<phi>' \<circ>\<^bsub>\<E>\<^esub> \<phi>\<close>,simplified,
+                OF phi'_phi.particular_struct_morphism_axioms,
+                simplified compose_eq]
       note R2 = A(3)[THEN iffD2,of \<Gamma>' _ y',rule_format,simplified,
                 OF ex_morph,of \<open>\<phi>\<^sub>1 \<circ> \<phi>\<close>,simplified 
                 , simplified
@@ -363,8 +406,7 @@ proof -
                    simplified phi1(2)[symmetric]],
                  simplified]
       note R3 = as4[simplified  I2.morph_is_surjective[symmetric]]
-      note R1 R2 R3[of \<open>\<phi> z\<close>,simplified]           
-  
+        
       note I2.morph_is_surjective[symmetric]
       have R5: \<open>\<phi> z = \<phi> x \<longleftrightarrow> z = x\<close> if \<open>z \<in> \<E>\<close> for z
         using that \<open>x \<in> \<E>\<close> I2.morph_is_injective inj_onD 
@@ -388,7 +430,10 @@ begin
 lemma \<^marker>\<open>tag (proof) aponly\<close> identity_pred:
   fixes 
      P x and \<phi> :: \<open>'p \<Rightarrow> ZF\<close>
-  assumes \<open>identity_pred \<Gamma> P x\<close> \<open>inj_on \<phi> \<P>\<close>
+   assumes \<open>identity_pred \<Gamma> P x\<close> 
+      \<open>inj_on \<phi> \<P>\<close>
+      \<open>\<phi> \<in> extensional \<P>\<close>
+      \<open>undefined \<notin> \<phi> ` \<P>\<close>
   shows \<open>P (MorphImg \<phi> \<Gamma>) y \<longleftrightarrow> y = \<phi> x\<close>
 proof -
   obtain A: 
@@ -401,8 +446,9 @@ proof -
   have B: \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
     apply (simp ; intro conjI)
     subgoal using assms(2)[THEN inj_on_subset,simplified] by simp
-    using inj_on_id by blast
-  then interpret I: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close> by simp
+    subgoal using inj_on_id by blast
+    using assms by auto
+  then interpret I: particular_struct_bijection_1 \<Gamma> \<phi> by simp
   have C: \<open>MorphImg \<phi> \<Gamma> \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
     by (intro isomorphic_models_I[of \<open>\<phi>\<close>] B ; simp)
   have D: \<open>\<phi> \<in> Morphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>\<close>    
@@ -428,13 +474,16 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> identity_pred_I1:
 proof -   
   have A: \<open>BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub> \<noteq> \<emptyset>\<close>
   proof -
-    obtain \<phi> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>inj \<phi>\<close> 
-      using injection_to_ZF_exist by blast
-    then have \<open>inj_on \<phi> \<P>\<close> 
-      using inj_on_subset \<open>inj \<phi>\<close> by blast
+    obtain \<phi> :: \<open>'p \<Rightarrow> ZF\<close> where \<phi>:
+      \<open>inj_on \<phi> \<E>\<close> 
+      \<open>\<phi> \<in> extensional \<E>\<close>
+      \<open>undefined \<notin> \<phi> ` \<E>\<close>
+    using inj_zf_to_delimited_func injection_to_ZF_exist
+    by metis
     have \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close>
       apply (intro \<open>inj_on \<phi> \<P>\<close> inj_morph_img_BijMorphs)
-      using  inj_on_id by blast
+      subgoal using  inj_on_id by blast
+      using \<phi> by auto
     then show \<open>?thesis\<close> by blast
   qed              
   

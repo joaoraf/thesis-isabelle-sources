@@ -128,7 +128,17 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> intrinsicallyAnchored_are_Anch
 
 end
 
-    
+
+lemma id_on_comp_right: \<open>f \<circ>\<^bsub>A\<^esub> id_on A = f\<close> if \<open>f \<in> extensional A\<close> for f A
+  using that 
+  by (intro ext 
+        ; auto simp: extensional_def id_on_def compose_def)
+
+lemma id_on_comp_left: \<open>id_on A \<circ>\<^bsub>A\<^esub> f = f\<close> if \<open>f \<in> A \<rightarrow> A\<close> \<open>f \<in> extensional A\<close> for f A
+  using that 
+  by (intro ext 
+        ; auto simp: extensional_def id_on_def compose_def)
+
 context ufo_particular_theory
 begin
 
@@ -141,41 +151,50 @@ proof -
          \<open>\<And>\<phi> z. \<lbrakk> z \<in> particulars \<Gamma>\<^sub>x ; \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub> \<rbrakk> \<Longrightarrow> \<phi> z = x \<longleftrightarrow> z = y\<close>
     using anchorsE[OF assms(1)] by metis
   then interpret phi_x: particular_struct_injection \<Gamma>\<^sub>x \<Gamma> \<phi>\<^sub>x \<open>TYPE(ZF)\<close> \<open>TYPE('p)\<close> \<open>TYPE('q)\<close> by simp
-  have \<open>\<exists>(z :: ZF) \<Gamma>' \<phi>. z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ> \<phi>\<rightarrow>\<^sub>\<bottom> x \<and> \<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x\<close>
+  have \<open>\<exists>(z :: ZF) \<Gamma>' \<phi>. z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>\<rightarrow>\<^sub>\<bottom> x \<and> 
+                \<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x\<close>
   proof (rule ccontr; simp)
-    assume AA: \<open>\<forall>(z :: ZF) \<Gamma>' \<phi>. z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ> \<phi>\<rightarrow>\<^sub>\<bottom> x \<longrightarrow> \<not> \<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x \<close>
-    have no_min_anchor: \<open>False\<close> if \<open>z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ> \<phi>\<rightarrow>\<^sub>\<bottom> x \<close> \<open>\<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x\<close> for z :: ZF and \<Gamma>' \<phi>
+    assume AA: \<open>\<forall>(z :: ZF) \<Gamma>' \<phi>. z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>\<rightarrow>\<^sub>\<bottom> x \<longrightarrow> \<not> \<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x \<close>
+    have no_min_anchor: \<open>False\<close> if \<open>z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>\<rightarrow>\<^sub>\<bottom> x \<close> \<open>\<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>\<^sub>x\<close> for z :: ZF and \<Gamma>' \<phi>
       using AA[rule_format] that by simp
-    define N where \<open>N \<equiv> { card (particulars \<Gamma>') | \<Gamma>' (z :: ZF) \<phi>\<^sub>1 . z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ> \<phi>\<^sub>1\<rightarrow>\<^sub>1 x \<and> \<Gamma>'\<lless>\<^bsub>\<phi>\<^sub>1\<^esub> \<Gamma>\<^sub>x \<and> finite (particulars \<Gamma>')}\<close>
+    define N where \<open>N \<equiv> { card (particulars \<Gamma>') | \<Gamma>' (z :: ZF) \<phi>\<^sub>1 . z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<phi>\<^sub>1\<rightarrow>\<^sub>1 x \<and> \<Gamma>'\<lless>\<^bsub>\<phi>\<^sub>1\<^esub> \<Gamma>\<^sub>x \<and> finite (particulars \<Gamma>')}\<close>
     have \<open>N \<noteq> \<emptyset>\<close>
       apply (auto simp: N_def)      
       apply (rule exI[of _ \<Gamma>\<^sub>x] ; rule exI[of _ y]
-              ; rule exI[of _ id] ; intro conjI
+              ; rule exI[of _ \<open>id_on (particulars \<Gamma>\<^sub>x)\<close>] ; intro conjI
               ; (simp only: o_id)?)
+      
       subgoal by (simp add: phi_x.src.particular_struct_axioms sub_structure_by_refl)
-      subgoal using assms(1) by blast      
+      subgoal using assms(1)
+        apply (subst id_on_comp_right[of \<phi>\<^sub>x \<open>particulars \<Gamma>\<^sub>x\<close>,simplified])
+        by blast      
       by (simp add: assms(2))
 
     then obtain n where N: \<open>n \<in> N\<close> \<open>\<And>i. i \<in> N \<Longrightarrow> n \<le> i\<close> 
       by (meson Inf_nat_def1 bdd_below_def bot.extremum cInf_less_iff leI less_imp_neq)
     then obtain \<Gamma>' and z :: ZF and \<phi>'
-      where gamma_z: \<open>z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ> \<phi>'\<rightarrow>\<^sub>1 x\<close> \<open>\<Gamma>'\<lless>\<^bsub>\<phi>'\<^esub> \<Gamma>\<^sub>x\<close> \<open>finite (particulars \<Gamma>')\<close> 
+      where gamma_z: \<open>z \<midarrow>\<Gamma>',\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>'\<^esub> \<phi>'\<rightarrow>\<^sub>1 x\<close> \<open>\<Gamma>'\<lless>\<^bsub>\<phi>'\<^esub> \<Gamma>\<^sub>x\<close> \<open>finite (particulars \<Gamma>')\<close> 
             \<open>n = card (particulars \<Gamma>')\<close> 
-      using N apply (simp add: N_def)
-      by blast
-    interpret phi_x': particular_struct_injection \<Gamma>' \<Gamma> \<open>\<phi>\<^sub>x \<circ> \<phi>'\<close> using gamma_z(1) by blast
+      using N apply (simp add: N_def)      
+      by (smt (verit, ccfv_SIG) anchors_def 
+          phi_x.particular_struct_injection_axioms sub_structure_by_trans)
+      
+    interpret phi_x': 
+      particular_struct_injection \<Gamma>' \<Gamma> \<open>\<phi>\<^sub>x \<circ>\<^bsub>particulars \<Gamma>'\<^esub> \<phi>'\<close> using gamma_z(1) by blast
     interpret phi': particular_struct_injection \<Gamma>' \<Gamma>\<^sub>x \<phi>' using gamma_z(2) by blast
       
     have gamma'': \<open>\<not> z' \<midarrow>\<Gamma>'',\<phi>\<^sub>1\<rightarrow>\<^sub>1 x\<close> if \<open>\<Gamma>'' \<lless>\<^bsub>\<phi>\<^sub>2\<^esub> \<Gamma>'\<close> \<open>\<forall>\<phi>. \<not> \<Gamma>' \<lless>\<^bsub>\<phi>\<^esub> \<Gamma>''\<close> for \<Gamma>'' and z' :: ZF and \<phi>\<^sub>1 \<phi>\<^sub>2
     proof (rule ccontr ; simp)
       assume as3: \<open>z' \<midarrow>\<Gamma>'',\<phi>\<^sub>1\<rightarrow>\<^sub>1 x\<close>
-      have C1: \<open>\<Gamma>'' \<lless>\<^bsub>\<phi>' \<circ> \<phi>\<^sub>2\<^esub> \<Gamma>\<^sub>x\<close> using that(1) gamma_z(2) sub_structure_by_trans
+      have C1: \<open>\<Gamma>'' \<lless>\<^bsub>\<phi>' \<circ>\<^bsub>particulars \<Gamma>''\<^esub> \<phi>\<^sub>2\<^esub> \<Gamma>\<^sub>x\<close> 
+        using sub_structure_by_trans
+        using that(1) gamma_z(2) sub_structure_by_trans
         by metis
       then have C2: \<open>finite (particulars \<Gamma>'')\<close> 
         using assms(2) finite_card_sub_structure_by_finite by metis
       have C3: \<open>card (particulars \<Gamma>'') < card (particulars \<Gamma>')\<close>
         using that(1,2) by (simp add: finite_card_substruct_lt gamma_z(3))
-      have C3_1: \<open>\<exists>z \<phi>\<^sub>1. z \<midarrow>\<Gamma>'',\<phi>\<^sub>x \<circ> \<phi>\<^sub>1\<rightarrow>\<^sub>1 x \<and> \<Gamma>'' \<lless>\<^bsub>\<phi>\<^sub>1\<^esub> \<Gamma>\<^sub>x \<and> finite (particulars \<Gamma>'')\<close>
+      have C3_1: \<open>\<exists>z \<phi>\<^sub>1. z \<midarrow>\<Gamma>'',\<phi>\<^sub>x \<circ> \<phi>\<^sub>1\<rightarrow>\<^sub>1 x  \<and> \<Gamma>'' \<lless>\<^bsub>\<phi>\<^sub>1\<^esub> \<Gamma>\<^sub>x \<and> finite (particulars \<Gamma>'')\<close>
       proof -
         have "\<forall>f p. \<Gamma>'' \<lless>\<^bsub>(f::ZF \<Rightarrow> 'p) \<circ> (\<phi>' \<circ> \<phi>\<^sub>2)\<^esub> p \<or> \<not> \<Gamma>\<^sub>x \<lless>\<^bsub>f\<^esub> p"
           using C1 sub_structure_by_trans by blast

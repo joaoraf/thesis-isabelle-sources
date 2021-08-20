@@ -121,6 +121,7 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> anchored_particulars_E[elim!]:
   by (simp add: anchored_particulars_def ; metis)
 
 
+
 lemma \<^marker>\<open>tag (proof) aponly\<close> anchored_particulars_I1[intro!]:
   fixes y :: \<open>'p\<^sub>1\<close>
   assumes \<open>y \<midarrow>\<Gamma>\<^sub>x,\<phi>\<^sub>x\<rightarrow>\<^sub>1 x\<close>
@@ -132,44 +133,76 @@ proof -
     using assms by blast
   interpret I: particular_struct_injection \<open>\<Gamma>\<^sub>x\<close> \<open>\<Gamma>\<close> \<open>\<phi>\<^sub>x\<close> 
     using A(2) by simp
-  obtain \<sigma> :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where \<open>inj \<sigma>\<close> 
-    using I.src.injection_to_ZF_exist by blast
-  interpret I2: particular_struct_bijection_1 \<open>\<Gamma>\<^sub>x\<close> \<sigma> 
-    using I.src.inj_morph_img_isomorphism[of \<sigma>]    
-    by (metis I.src.\<Gamma>_simps UNIV_I \<open>inj \<sigma>\<close> inj_on_id inj_on_subset 
-              particular_struct_eqI subsetI)
+
+  obtain \<sigma> :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> where \<sigma>:
+      \<open>inj_on \<sigma> (particulars \<Gamma>\<^sub>x)\<close> 
+      \<open>\<sigma> \<in> extensional (particulars \<Gamma>\<^sub>x)\<close>
+      \<open>undefined \<notin> \<sigma> ` (particulars \<Gamma>\<^sub>x)\<close>
+    using inj_zf_to_delimited_func I.src.injection_to_ZF_exist
+    by metis
+  have I_src: \<open>I.src.\<Gamma> = \<Gamma>\<^sub>x\<close> by simp
+  interpret I2: particular_struct_bijection_1 \<open>\<Gamma>\<^sub>x\<close> \<sigma>     
+    apply (intro I.src.inj_morph_img_isomorphism[of \<sigma>,simplified I_src] \<sigma>)
+    using inj_on_id by blast
+
   have C: \<open>I2.tgt.\<Gamma> = MorphImg \<sigma> \<Gamma>\<^sub>x\<close> 
     using I2.tgt.\<Gamma>_simps by blast
 
-  interpret I3: particular_struct_bijection_1 \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close> \<open>inv \<sigma>\<close>
+  
+  interpret I3: particular_struct_bijection_1 \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close> \<open>I2.inv_morph\<close>
     apply (intro I2.tgt.inj_morph_img_isomorphism[simplified C])
-    subgoal 
-      by (metis I2.inv_morph_morph UNIV_I image_eqI 
-                inj_on_inv_into subsetI)
-    using I.src.injection_to_ZF_exist by blast
+    subgoal by simp
+    subgoal using I.src.injection_to_ZF_exist by blast
+    subgoal by (metis I2.morph_is_surjective Inv_extensional)
+    using I.src.undefined_not_in_particulars by blast
 
-  have D[simp]: \<open>inv \<sigma> ` \<sigma> ` X = X\<close> for X
-    using \<open>inj \<sigma>\<close> by (auto simp: image_def)
-
-  have E[simp]: \<open>inv \<sigma> (\<sigma> x) = x\<close> for x
-    using \<open>inj \<sigma>\<close> by (auto simp: image_def)
+  have D[simp]: \<open>I2.inv_morph ` \<sigma> ` X = X\<close> if \<open>X \<subseteq> particulars \<Gamma>\<^sub>x\<close> for X
+    using \<sigma>(1) that
+    apply (auto simp: Inv_def image_def Ball_def)
+    subgoal for u t 
+      (* slow *)
+      by (metis (no_types, lifting) I2.inv_morph_morph 
+          I2.morph_image_def I2.morph_is_surjective I2.phi_inv_img I3.morph_image_def 
+          particular_struct_morphism_sig.morph_image_E subset_iff)
+    subgoal for u      
+      by (metis I2.morph_is_injective inv_into_f_f subsetD)
+    subgoal for u
+      apply (intro exI[of _ \<open>\<sigma> u\<close>] conjI allI impI bexI[of _ u] ; simp?)      
+      by (metis I2.morph_is_injective inv_into_f_f subsetD)
+    done  
+  have simps: 
+    \<open>\<And>x y. I2.src_inheres_in x y \<Longrightarrow> I2.inv_morph (\<sigma> x) = x\<close>
+    \<open>\<And>x y. I2.src_inheres_in y x \<Longrightarrow> I2.inv_morph (\<sigma> x) = x\<close>
+    \<open>\<And>x y. I2.src_assoc_quale x y \<Longrightarrow> I2.inv_morph (\<sigma> x) = x\<close>
+    \<open>\<And>x y. I2.src_towards x y \<Longrightarrow> I2.inv_morph (\<sigma> x) = x\<close>
+    \<open>\<And>x y. I2.src_towards y x \<Longrightarrow> I2.inv_morph (\<sigma> x) = x\<close>    
+    subgoal by (simp add: I.src.inherence_scope) 
+    subgoal by (simp add: I.src.inherence_scope)
+    subgoal by (meson I.src.assoc_quale_scopeD(1) I2.morph_is_injective Inv_f_eq)
+    subgoal by (simp add: I.src.towardness_scopeD(2))
+    by (simp add: I.src.towardness_scopeD)
     
-  have F[simp]: \<open>MorphImg (inv \<sigma>) (MorphImg \<sigma> \<Gamma>\<^sub>x) = \<Gamma>\<^sub>x\<close>
+  have F[simp]: \<open>MorphImg (I2.inv_morph) (MorphImg \<sigma> \<Gamma>\<^sub>x) = \<Gamma>\<^sub>x\<close>
     apply (intro particular_struct_eqI ext 
-          ; auto simp add: particular_struct_morphism_image_simps)
+          ; auto simp add: particular_struct_morphism_image_simps ; (simp add: simps)?)    
     subgoal using D by blast
-    subgoal by force
-    by (metis UNIV_I \<open>inj \<sigma>\<close> inv_into_f_f)
-          
-  interpret I4: particular_struct_injection \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close> \<Gamma> \<open>\<phi>\<^sub>x \<circ> inv \<sigma>\<close>
+    subgoal by (metis local.simps(1) local.simps(2))    
+    subgoal by (metis local.simps(3))    
+    by (metis local.simps(4) local.simps(5))
+
+  have par_morph: \<open>particulars (MorphImg \<sigma> \<Gamma>\<^sub>x) = \<sigma> ` particulars \<Gamma>\<^sub>x\<close>
+    by simp
+  interpret I4: particular_struct_injection 
+      \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close> \<Gamma> \<open>\<phi>\<^sub>x \<circ>\<^bsub>\<sigma> ` particulars \<Gamma>\<^sub>x\<^esub> I2.inv_morph\<close>
+    apply (simp only: par_morph[symmetric])
     apply (intro particular_struct_injection_comp[of _ \<open>\<Gamma>\<^sub>x\<close>])
     using I3.particular_struct_injection_axioms[simplified]
           I.particular_struct_injection_axioms 
     by simp+
 
-  have G: \<open>\<phi>\<^sub>x \<circ> inv \<sigma> \<in> InjMorphs\<^bsub>MorphImg \<sigma> \<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
+  have G: \<open>\<phi>\<^sub>x \<circ>\<^bsub>\<sigma> ` particulars \<Gamma>\<^sub>x\<^esub> I2.inv_morph \<in> InjMorphs\<^bsub>MorphImg \<sigma> \<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
     using I4.particular_struct_injection_axioms by blast
-  then have H: \<open>MorphImg \<sigma> \<Gamma>\<^sub>x \<lless>\<^bsub>\<phi>\<^sub>x \<circ> inv \<sigma>\<^esub> \<Gamma>\<close> by blast
+  then have H: \<open>MorphImg \<sigma> \<Gamma>\<^sub>x \<lless>\<^bsub>\<phi>\<^sub>x \<circ>\<^bsub>\<sigma> ` particulars \<Gamma>\<^sub>x\<^esub> I2.inv_morph\<^esub> \<Gamma>\<close> by blast
 
   have J[simp]: \<open>(\<phi> z = x) = (z = \<sigma> y)\<close>
     if as: \<open>z \<in> I3.src.endurants\<close> 
@@ -177,25 +210,27 @@ proof -
   proof -
     interpret I5: particular_struct_morphism \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close> \<Gamma> \<phi> 
       using as by simp
-    have AA: \<open>\<phi> \<circ> \<sigma> \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
+    have AA: \<open>\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> \<sigma> \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
       apply (intro morphs_I 
                 particular_struct_morphism_comp[of _ \<open>MorphImg \<sigma> \<Gamma>\<^sub>x\<close>] as)      
       by (simp add: I2.particular_struct_morphism_axioms)
-    have BB: \<open>inv \<sigma> z \<in> I.src.endurants\<close>      
+    have BB: \<open>I2.inv_morph z \<in> I.src.endurants\<close>      
       by (metis F I3.I_img_eq_tgt_I I3.morph_image_def image_eqI as(1))
-    have CC:\<open>\<sigma> (inv \<sigma> z) = z\<close> using as(1) 
-      by (meson BB E I2.morph_preserves_particulars 
-                I3.morph_is_injective inj_onD)
-    have DD: \<open>(\<phi> z = x) = (inv \<sigma> z = y)\<close>
-      using B[OF BB AA] CC 
-      by (simp ; metis)
+    have CC:\<open>\<sigma> (I2.inv_morph z) = z\<close> using as(1)       
+      using I2.inv_morph_morph by blast
+    have CC1: \<open>\<phi> z = t \<longleftrightarrow> (\<phi> \<circ>\<^bsub>I.src.endurants\<^esub> \<sigma>) (I2.inv_morph z) = t\<close> for t
+      by (simp add: compose_eq[OF BB,of \<phi> \<sigma>] CC)
+    note CC1[simplified]
+    have DD: \<open>(\<phi> z = x) = (I2.inv_morph z = y)\<close>
+      using B[OF BB AA] CC1[of x] by simp       
     show ?thesis
       apply (simp add: DD)      
-      using CC by auto      
+      using CC  A(3) by force      
   qed
-  have K: \<open>\<sigma> y \<midarrow>MorphImg \<sigma> \<Gamma>\<^sub>x,\<phi>\<^sub>x \<circ> inv \<sigma>\<rightarrow>\<^sub>1 x\<close>
+  have K: \<open>\<sigma> y \<midarrow>MorphImg \<sigma> \<Gamma>\<^sub>x,\<phi>\<^sub>x \<circ>\<^bsub>\<sigma> ` particulars \<Gamma>\<^sub>x\<^esub> I2.inv_morph \<rightarrow>\<^sub>1 x\<close>
     apply (intro anchorsI I4.particular_struct_injection_axioms H A)
-    using A(3) by auto
+    subgoal using A(3) by blast
+    by force
   show ?thesis 
     by (intro anchored_particulars_I[OF K])
 qed
@@ -211,9 +246,14 @@ proof -
     using anchorsE[OF assms] by metis
   interpret phi: particular_struct_injection \<Gamma>\<^sub>x \<Gamma> \<phi> 
     using A(3) .
-  obtain f :: \<open>'a \<Rightarrow> ZF\<close> where f: \<open>inj f\<close> 
-    using phi.src.injection_to_ZF_exist by blast
-  have \<open>phi.src.\<Gamma> = \<Gamma>\<^sub>x\<close> by auto
+  obtain f :: \<open>'a \<Rightarrow> ZF\<close> where f:
+      \<open>inj_on f (particulars \<Gamma>\<^sub>x)\<close> 
+      \<open>f \<in> extensional (particulars \<Gamma>\<^sub>x)\<close>
+      \<open>undefined \<notin> f ` (particulars \<Gamma>\<^sub>x)\<close>
+    using inj_zf_to_delimited_func phi.src.injection_to_ZF_exist
+    by metis
+  
+  have phi_src: \<open>phi.src.\<Gamma> = \<Gamma>\<^sub>x\<close> by auto
   have \<open>particular_struct_bijection_1 \<Gamma>\<^sub>x f\<close> using f
     apply (subst \<open>phi.src.\<Gamma> = \<Gamma>\<^sub>x\<close>[symmetric])
     apply (intro phi.src.inj_morph_img_isomorphism)
@@ -223,17 +263,19 @@ proof -
       particular_struct_bijection_1 \<Gamma>\<^sub>x f  
     by blast
   have \<open>particular_struct_injection (MorphImg f \<Gamma>\<^sub>x) \<Gamma>\<^sub>x gamma_x.inv_morph\<close>    
-    using particular_struct_bijection_def by blast
+    using particular_struct_bijection_def by blast  
   then interpret gamma_x_inv: 
     particular_struct_injection \<open>MorphImg f \<Gamma>\<^sub>x\<close> \<Gamma>\<^sub>x gamma_x.inv_morph .
-  have \<open>particular_struct_injection (MorphImg f \<Gamma>\<^sub>x) \<Gamma> (\<phi> \<circ> gamma_x.inv_morph)\<close>
-    apply (intro particular_struct_injection_comp[of _ \<Gamma>\<^sub>x])
+  have gamma_x_inv_P: \<open>gamma_x_inv.src.endurants = f ` particulars \<Gamma>\<^sub>x\<close>
+    by auto
+  have \<open>particular_struct_injection (MorphImg f \<Gamma>\<^sub>x) \<Gamma> (\<phi> \<circ>\<^bsub>f ` particulars \<Gamma>\<^sub>x\<^esub> gamma_x.inv_morph)\<close>
+    apply (intro particular_struct_injection_comp[of \<open>MorphImg f \<Gamma>\<^sub>x\<close> \<Gamma>\<^sub>x,simplified gamma_x_inv_P])
     by (intro_locales)
   then interpret phi_gamma_x_inv: 
     particular_struct_injection 
-       \<open>MorphImg f \<Gamma>\<^sub>x\<close> \<Gamma> \<open>\<phi> \<circ> gamma_x.inv_morph\<close> 
+       \<open>MorphImg f \<Gamma>\<^sub>x\<close> \<Gamma> \<open>\<phi> \<circ>\<^bsub>f ` particulars \<Gamma>\<^sub>x\<^esub> gamma_x.inv_morph\<close> 
        \<open>TYPE(ZF)\<close> \<open>TYPE('p)\<close> .
-  have R1: \<open>MorphImg f \<Gamma>\<^sub>x \<lless>\<^bsub>\<phi> \<circ> gamma_x.inv_morph\<^esub> \<Gamma>\<close>    
+  have R1: \<open>MorphImg f \<Gamma>\<^sub>x \<lless>\<^bsub>\<phi> \<circ>\<^bsub>f ` particulars \<Gamma>\<^sub>x\<^esub> gamma_x.inv_morph\<^esub> \<Gamma>\<close>    
     using injectives_I[
            OF phi_gamma_x_inv.particular_struct_injection_axioms]
     by blast
@@ -243,7 +285,7 @@ proof -
     using A(4)[OF _ R2,simplified,of y,simplified] A(2) by metis
   have R4: \<open>f y \<in> gamma_x_inv.src.\<P>\<close> using A(2) by blast
   
-  have R5: \<open>f y \<midarrow>MorphImg f \<Gamma>\<^sub>x,\<phi> \<circ> gamma_x.inv_morph\<rightarrow>\<^sub>1 x\<close> 
+  have R5: \<open>f y \<midarrow>MorphImg f \<Gamma>\<^sub>x,\<phi> \<circ>\<^bsub>f ` particulars \<Gamma>\<^sub>x\<^esub> gamma_x.inv_morph\<rightarrow>\<^sub>1 x\<close> 
   proof (intro anchorsI A(1) R1 R4)
     fix \<sigma> z
     assume as: \<open>z \<in> gamma_x_inv.src.\<P>\<close> \<open>\<sigma> \<in> Morphs\<^bsub>MorphImg f \<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>
@@ -251,27 +293,27 @@ proof -
       particular_struct_morphism \<open>MorphImg f \<Gamma>\<^sub>x\<close> \<Gamma> \<sigma> 
       using as(2) by blast
     interpret 
-      particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<phi> \<circ> gamma_x.inv_morph \<circ> f\<close>                                 
-      apply (intro particular_struct_morphism_comp[
-                    of _ \<open>MorphImg f \<Gamma>\<^sub>x\<close>])
+      particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<phi> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> gamma_x.inv_morph \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> f\<close>
+      apply (intro particular_struct_morphism_comp[of _ \<Gamma>\<^sub>x])
+      apply (intro particular_struct_morphism_comp[of _ \<open>MorphImg f \<Gamma>\<^sub>x\<close>])
+      subgoal by intro_locales
+      subgoal by intro_locales
       by intro_locales
     
     interpret sigma_f: 
-      particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<sigma> \<circ> f\<close>                                      
+      particular_struct_morphism \<Gamma>\<^sub>x \<Gamma> \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> f\<close>                                      
       apply (intro particular_struct_morphism_comp[of _ \<open>MorphImg f \<Gamma>\<^sub>x\<close>])
       by intro_locales
-    have RR1: \<open>\<sigma> \<circ> f \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>       
+    have RR1: \<open>\<sigma> \<circ>\<^bsub>particulars \<Gamma>\<^sub>x\<^esub> f \<in> Morphs\<^bsub>\<Gamma>\<^sub>x,\<Gamma>\<^esub>\<close>       
       using sigma_f.particular_struct_morphism_axioms by blast
-    have I1: \<open>gamma_x.inv_morph (f x) = x\<close> if \<open>x \<in> phi.src.\<P>\<close> for x
-      using that  by simp
-    have I2: \<open>f (gamma_x.inv_morph x) = x\<close> if \<open>x \<in> gamma_x.tgt.\<P>\<close> for x
-      using that  by simp
-    show \<open>\<sigma> z = x \<longleftrightarrow> z = f y\<close>
-      supply R =  I1 I2 A(4)[OF _ RR1,simplified] R3 as(1) A(2) 
+    have I3: \<open>e \<in> gamma_x_inv.tgt.endurants \<Longrightarrow> \<sigma> (f e) = x \<longleftrightarrow> e = y\<close> for e
+      using A(4)[OF _ RR1,of e] compose_eq[of e _ \<sigma> _]
+      by simp    
+    show \<open>\<sigma> z = x \<longleftrightarrow> z = f y\<close> 
       apply (intro iffI)
-      subgoal using R 
-        by (metis gamma_x_inv.morph_preserves_particulars)
-      using R by blast
+      subgoal 
+        by (metis I3 as(1) gamma_x.I_img_eq_tgt_I gamma_x.morph_image_E)      
+      by (simp add: I3 A(2))      
   qed
   have R6: \<open>MorphImg f \<Gamma>\<^sub>x \<in> IsoModels\<^bsub>\<Gamma>\<^sub>x,TYPE(ZF)\<^esub>\<close>    
     using gamma_x.particular_struct_bijection_1_axioms by blast

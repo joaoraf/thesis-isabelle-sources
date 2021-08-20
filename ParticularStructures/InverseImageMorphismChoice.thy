@@ -405,10 +405,29 @@ interpretation img: particular_struct_surjection \<Gamma>\<^sub>1 \<open>MorphIm
 
 declare img.morph_is_surjective[simp del]
 
+private lemma someInvMorph_undef[simp]: 
+  \<open>someInvMorph \<in> extensional img.tgt.endurants\<close>
+  apply (simp only: extensional_def ; intro CollectI)
+  apply (intro allI impI)
+  subgoal for x
+    apply (cases \<open>x \<in> \<phi> ` src.\<P>\<close>
+        ; simp add: possible_worlds_sig.\<P>_def
+        ; simp add: someInvMorph_def ; safe)
+    subgoal by blast    
+    by (simp add: src.\<P>_def)
+  done
+
 interpretation some_inv_to_some_inv_img: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<close> someInvMorph \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
   apply (intro img.tgt.inj_morph_img_isomorphism[simplified morph_image_tgt_struct])
   subgoal using someInvMorph_inj_phi_img img.morph_is_surjective by auto  
-  using src.injection_to_ZF_exist by blast
+  subgoal using src.injection_to_ZF_exist by blast
+  subgoal using someInvMorph_undef by simp
+  subgoal
+    apply (auto simp: possible_worlds_sig.\<P>_def someInvMorph_def)
+    by (metis delta_dom morph_image_I morph_image_def someInvMorph_def
+        someInvMorph_delta_simp src.\<P>_E src.\<P>_I 
+        src.undefined_not_in_particulars)
+  done
 
 private lemma \<^marker>\<open>tag (proof) aponly\<close> A1[simp]: \<open>some_inv_to_some_inv_img.tgt.\<Q>\<S> = src.\<Q>\<S>\<close>
   by auto
@@ -496,33 +515,140 @@ private lemma \<^marker>\<open>tag (proof) aponly\<close> A6: \<open>\<exists>y\
       by (metis \<open>some_inv_to_some_inv_img.src_towards (\<phi> y) (\<phi> z)\<close> 
             image_eqI morph_image_towards_E)      
   qed 
-
-
-interpretation some_inv_img_to_src: pre_particular_struct_morphism \<open>MorphImg (someInvMorph \<circ> \<phi>) \<Gamma>\<^sub>1\<close> \<Gamma>\<^sub>1 id \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>  
-proof -    
-
-  show \<open>pre_particular_struct_morphism (MorphImg (someInvMorph \<circ> \<phi>) \<Gamma>\<^sub>1) \<Gamma>\<^sub>1 id\<close>  
-    apply (simp only: morph_img_comp ; unfold_locales ; (simp only: id_def A1 S1 A3 A4 A5)?)    
-    subgoal AX2 using A2 .
-    subgoal AX3 for x y
-      by (metis A2 S1 img.I_img_eq_tgt_I img.morph_reflects_inherence morph_image_def 
-            someInvMorph_as_inv someInvMorph_phi_phi some_inv_to_some_inv_img.I_img_eq_tgt_I 
-            some_inv_to_some_inv_img.morph_image_E src.inherence_scope)
-    subgoal AX4 for x z  
-      by (metis AX2 S1 img.morph_preserves_particulars img.morph_reflects_inherence 
-            someInvMorph_phi_phi some_inv_to_some_inv_img.I_img_eq_tgt_I 
-            some_inv_to_some_inv_img.morph_image_I src.endurantI2 src.moment_non_migration)       
-    subgoal AX5 for x y 
-      (* slow *)
-      by (metis (no_types, lifting) A4 AX2 S1 img.morph_reflects_towardness morph_image_particulars 
-            particular_struct_morphism_sig.morph_image_iff someInvMorph_as_inv 
-            some_inv_to_some_inv_img.I_img_eq_tgt_I 
-            some_inv_to_some_inv_img.morph_reflects_towardness)      
-    subgoal AX6 for x z using A6 .      
-    subgoal AX7 for x q
-      by (metis A2 S1 morph_image_particulars morph_reflects_quale_assoc someInvMorph_as_inv 
-            someInvMorph_phi_phi some_inv_to_some_inv_img.I_img_eq_tgt_I 
-            some_inv_to_some_inv_img.morph_image_iff src.assoc_quale_scopeD(1))      
+  
+interpretation some_inv_img_to_src: 
+  pre_particular_struct_morphism 
+    \<open>MorphImg (someInvMorph \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>) \<Gamma>\<^sub>1\<close> 
+    \<Gamma>\<^sub>1 
+    \<open>id_on (someInvMorph ` \<phi> ` src.\<P>)\<close> 
+    \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>  
+proof -      
+  let ?P1 = \<open>someInvMorph ` \<phi> ` src.\<P>\<close>
+  interpret M: particular_struct_morphism_sig 
+                \<open>MorphImg (someInvMorph \<circ>\<^bsub>src.\<P>\<^esub> \<phi>) \<Gamma>\<^sub>1\<close> 
+                \<Gamma>\<^sub>1 \<open>id_on ?P1\<close> 
+                \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close> .
+  interpret S: particular_struct \<open>MorphImg (someInvMorph \<circ>\<^bsub>M.tgt.\<P>\<^esub> \<phi>) \<Gamma>\<^sub>1\<close>
+  proof (intro_locales)
+    show G1: \<open>possible_worlds M.src.\<W>\<close>
+      apply (unfold_locales)
+      subgoal G1_1 by (simp add: src.injection_to_ZF_exist)
+      subgoal G1_2 using some_inv_to_some_inv_img.tgt.at_least_one_possible_world by auto      
+      subgoal G1_3 by (simp add: some_inv_to_some_inv_img.tgt.particulars_do_not_exist_in_some_world)            
+      by (simp add: some_inv_to_some_inv_img.tgt.undefined_not_in_particulars)
+    show G2: \<open>inherence_base_axioms M.src.\<W> M.src_inheres_in\<close>
+      apply (unfold_locales)
+      subgoal G2_1 using some_inv_to_some_inv_img.tgt.inherence_scope by force
+      subgoal G2_2 by (simp add: some_inv_to_some_inv_img.tgt.inherence_imp_ed)      
+      by (metis some_inv_to_some_inv_img.tgt.moment_non_migration src.morph_img_comp)
+    show G3: \<open>noetherian_inherence_axioms M.src_inheres_in\<close> 
+      apply (unfold_locales)      
+      by (metis some_inv_to_some_inv_img.tgt.just_noetherian_inherence_axioms src.morph_img_comp)      
+    show G4: \<open>inherence_axioms M.src_inheres_in\<close>
+      apply (unfold_locales)      
+      by (metis some_inv_to_some_inv_img.tgt.just_inherence_axioms src.morph_img_comp)       
+    show G5: \<open>quality_space M.src.\<Q>\<S>\<close>
+      apply (unfold_locales)
+      subgoal G5_1 using src.no_empty_quality_space by auto      
+      by (simp add: src.quality_spaces_are_disjoint)      
+    show G6: \<open>qualified_particulars_axioms M.src.\<W> M.src_inheres_in M.src.\<Q>\<S> M.src_assoc_quale\<close> 
+      apply (unfold_locales)
+      subgoal G6_1 
+        by (metis some_inv_to_some_inv_img.tgt.assoc_quale_scope src.morph_img_comp)
+      subgoal G6_2 
+        by (simp add: some_inv_to_some_inv_img.tgt.assoc_quale_unique)
+      subgoal G6_3 
+        using some_inv_to_some_inv_img.tgt.quality_moment_unique_by_quality_space 
+        by force 
+      subgoal G6_4 
+        using some_inv_to_some_inv_img.tgt.every_quality_space_is_used by force      
+      by (metis some_inv_to_some_inv_img.tgt.quale_determines_moment src.morph_img_comp)      
+    show G7: \<open>towardness_axioms M.src.\<W> M.src_inheres_in M.src_towards\<close>
+      apply (unfold_locales)
+      subgoal G7_1 
+         by (metis some_inv_to_some_inv_img.tgt.towardness_apply_to_moments
+              some_inv_to_some_inv_img.tgt.towardness_scopeD(4) src.morph_img_comp)
+      subgoal G7_2 by (simp add: some_inv_to_some_inv_img.tgt.towardness_imp_ed)
+      subgoal G7_3 
+        by (metis some_inv_to_some_inv_img.tgt.towardness_diff_ultimate_bearers src.morph_img_comp)
+      by (metis some_inv_to_some_inv_img.tgt.towardness_single src.morph_img_comp)       
+    show G8: \<open>ufo_particular_theory_axioms M.src_inheres_in M.src_assoc_quale\<close>
+      apply (unfold_locales)      
+      by (metis 
+          some_inv_to_some_inv_img.tgt.qualified_particulars_are_not_bearers src.morph_img_comp)      
+  qed
+  have id_on_simp1[simp]: \<open>id_on ?P1 x = x\<close> if \<open>x \<in> S.\<S>\<close> for x
+    apply (rule id_on_eq(1))
+    using that by (metis S.endurantI3 S1 src.morph_img_comp)
+  have id_on_simp2[simp]: \<open>id_on ?P1 x = x\<close> if \<open>x \<in> S.\<M>\<close> for x
+    apply (rule id_on_eq(1))
+    using that 
+    by (metis S.endurantI1 morph_image_particulars
+        some_inv_to_some_inv_img.morph_is_surjective src.morph_img_comp) 
+  have id_on_simp3[simp]: \<open>id_on ?P1 x = x\<close> if \<open>x \<in> S.\<P>\<close> for x
+    apply (rule id_on_eq(1))
+    using that by (metis S1 src.morph_img_comp)
+  have id_on_undef[iff]: \<open>id_on ?P1 x = undefined \<longleftrightarrow> x \<notin> ?P1\<close> for x
+    apply (cases \<open>x \<in> M.tgt.endurants\<close> ; simp)    
+    subgoal 
+       by (metis id_on_eq(1) id_on_eq(2) morph_image_particulars 
+                some_inv_to_some_inv_img.undefined_not_in_img)
+    by (meson A2 id_on_eq(2))
+  have lift_world_subset: 
+      \<open>someInvMorph ` \<phi> ` M.tgt.endurants \<subseteq> M.tgt.endurants\<close>
+    apply (auto)    
+    using A2 by blast  
+  have S_subset: \<open>some_inv_to_some_inv_img.tgt.\<S> \<subseteq> M.tgt.\<S>\<close>
+    apply auto
+    subgoal using A2 by blast
+    by (metis img.morph_preserves_moments_simp someInvMorph_phi_phi
+          some_inv_to_some_inv_img.morph_preserves_moments src.endurantI1)
+  have M_subset: \<open>some_inv_to_some_inv_img.tgt.\<M> \<subseteq> M.tgt.\<M>\<close>
+    apply auto
+    by (metis A2 img.morph_preserves_moments_simp morph_image_particulars 
+        someInvMorph_as_inv some_inv_to_some_inv_img.I_img_eq_tgt_I 
+        some_inv_to_some_inv_img.morph_image_E 
+        some_inv_to_some_inv_img.morph_image_def 
+        some_inv_to_some_inv_img.morph_preserves_moments_simp 
+        some_inv_to_some_inv_img.tgt.endurantI1)
+  show \<open>pre_particular_struct_morphism 
+          (MorphImg (someInvMorph \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>) \<Gamma>\<^sub>1) \<Gamma>\<^sub>1 
+          (id_on ?P1)\<close>  
+    apply (unfold_locales)
+    subgoal G1      
+      apply (intro id_on_extensional)?
+      by (auto simp: S_subset)
+    subgoal G2
+      apply (intro id_on_extensional)?
+      subgoal using S.moments_are_endurants by auto
+      by (auto simp: M_subset)
+    subgoal G3 by auto      
+    subgoal G4 by auto
+    subgoal G5 
+      apply auto
+      subgoal G5_1 by (metis someInvMorph_phi_phi)
+      by (metis A2 S1 img.morph_preserves_particulars 
+          img.morph_reflects_inherence someInvMorph_phi_phi
+          some_inv_to_some_inv_img.morph_preserves_particulars src.inherence_scope) 
+    subgoal G6 for x y
+      apply (auto)
+      subgoal for z t
+        apply (rule exI[of _ z] ; rule exI[of _ t] ; simp)
+        by (metis morph_reflects_towardness someInvMorph_phi_phi
+            src.towardness_scopeD(2) src.towardness_scopeD(3))
+      subgoal for z t o p
+        by (metis A2 img.I_img_eq_tgt_I img.morph_reflects_towardness 
+            morph_image_towards particular_struct_morphism_sig.morph_image_def 
+            someInvMorph_phi_phi some_inv_to_some_inv_img.morph_image_I 
+            src.towardness_scopeD(2) src.towardness_scopeD(3))
+      done
+    subgoal G7  by (metis A6 S1 id_on_simp3 src.morph_img_comp)
+    subgoal G8 for x q
+      apply auto
+      by (metis A2 S1 img.morph_preserves_particulars 
+          img.morph_reflects_quale_assoc someInvMorph_phi_phi 
+          some_inv_to_some_inv_img.morph_preserves_particulars 
+          src.assoc_quale_scopeD(1))
     done
 qed
 
@@ -611,11 +737,22 @@ private abbreviation imageWorldCorresp (infix \<open>\<Leftrightarrow>\<^sub>I\<
 
 private abbreviation someInvMorphAbbrev (\<open>\<phi>\<^sub>\<leftarrow>\<close>) where
   \<open>\<phi>\<^sub>\<leftarrow> \<equiv> someInvMorph\<close>
-  
 
-interpretation some_inv_img_to_src: particular_struct_morphism \<open>MorphImg (someInvMorph \<circ> \<phi>) \<Gamma>\<^sub>1\<close> \<Gamma>\<^sub>1 id \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
-  apply (unfold_locales) 
-  subgoal G1 for w\<^sub>s
+interpretation some_inv_img_to_src: 
+  particular_struct_morphism_sig 
+    \<open>MorphImg (someInvMorph \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>) \<Gamma>\<^sub>1\<close> 
+    \<Gamma>\<^sub>1 
+    \<open>id_on (someInvMorph ` \<phi> ` src.\<P>)\<close> 
+    \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close> .
+
+interpretation some_inv_img_to_src: 
+  particular_struct_morphism 
+    \<open>MorphImg (\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>) \<Gamma>\<^sub>1\<close> 
+    \<Gamma>\<^sub>1 
+    \<open>id_on (\<phi>\<^sub>\<leftarrow> ` \<phi> ` \<P>\<^sub>A)\<close> 
+    \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>  
+proof (unfold_locales) 
+  show \<open>w\<^sub>s \<in> \<W>\<^sub>R \<Longrightarrow> \<exists>w\<^sub>t. w\<^sub>s \<Leftrightarrow>\<^sub>R w\<^sub>t\<close> for w\<^sub>s
     apply (auto ; simp only: particular_struct_morphism_sig.world_corresp_def)
     apply (simp only: particular_struct_morphism_image_simps
                   possible_worlds_sig.\<P>_def id_def ; simp)
@@ -624,83 +761,84 @@ interpretation some_inv_img_to_src: particular_struct_morphism \<open>MorphImg (
       apply (intro exI[of _ w\<^sub>2]) (* apply (intro exI[of _ w\<^sub>s]) *)
       apply (intro conjI allI impI ballI iffI ; (elim exE conjE)? ; simp? ; hypsubst_thin?)
       subgoal for _ y _ w\<^sub>4 
-        by (metis A2 S1 img.I_img_eq_tgt_I img.world_corresp_def morph_image_def someInvMorph_as_inv some_inv_to_some_inv_img.I_img_eq_tgt_I some_inv_to_some_inv_img.morph_image_iff some_inv_to_some_inv_img.src_world_corresp_image some_inv_to_some_inv_img.tgt.\<P>_I some_inv_to_some_inv_img.world_corresp_def src_to_img1_world_corresp)
-      subgoal for _ y _ w\<^sub>4 
-        by (smt image_iff img.I_img_eq_tgt_I img.world_preserve_img morph_image_def someInvMorph_as_inv some_inv_to_some_inv_img.I_img_eq_tgt_I some_inv_to_some_inv_img.morph_image_iff some_inv_to_some_inv_img.tgt.\<P>_I some_inv_to_some_inv_img.world_preserve_img)
-      done
-    done
-  subgoal G2 for w\<^sub>t
-    apply (auto ; simp only: particular_struct_morphism_sig.world_corresp_def)
-    apply (simp only: particular_struct_morphism_image_simps
-                  possible_worlds_sig.\<P>_def id_def )
-    subgoal premises P
-      apply (rule exE[OF img.morph_worlds_correspond_src_tgt[OF P]])
-      subgoal  for w\<^sub>1
-        apply (elim img.world_corresp_E)
-        subgoal premises Q
-          apply (rule exE[OF some_inv_to_some_inv_img.morph_worlds_correspond_src_tgt[OF Q(2)]])
-          subgoal for w\<^sub>2
-            apply (elim some_inv_to_some_inv_img.world_corresp_E)
-            subgoal premises T
-              apply (rule T(2)[THEN A7, THEN bexE])
-              subgoal premises V for w\<^sub>3
-                apply (intro exI[of _ w\<^sub>2] conjI ballI iffI
-                      ; (intro CollectI)? ; (elim UnionE CollectE exE conjE)?
-                      ; simp)
-                prefer 2
-                subgoal G2_2 using P Q T V(1) V(2)[THEN subsetD]
-                  by (metis A2 S1 morph_image_particulars someInvMorph_as_inv some_inv_to_some_inv_img.I_img_eq_tgt_I some_inv_to_some_inv_img.morph_image_iff some_inv_to_some_inv_img.tgt.\<P>_I)
-                prefer 2
-                subgoal G2_3 using P Q T V(1) V(2)[THEN subsetD]
-                  by (metis img.world_preserve_img morph_image_particulars someInvMorph_as_inv some_inv_to_some_inv_img.I_img_eq_tgt_I some_inv_to_some_inv_img.morph_image_iff some_inv_to_some_inv_img.tgt.\<P>_I some_inv_to_some_inv_img.world_preserve_img src.\<P>_I)
-                subgoal G2_1
-                  apply (intro exI[of _ w\<^sub>1] conjI  exI[of _ w\<^sub>t] )
-                  subgoal G2_1_1
-                    using P Q T V apply auto
-                    subgoal G2_1_1_1 for x 
-                      by (metis some_inv_to_some_inv_img.morph_image_E some_inv_to_some_inv_img.morph_image_def some_inv_to_some_inv_img.morph_is_surjective some_inv_to_some_inv_img.src_world_corresp_image some_inv_to_some_inv_img.tgt.\<P>_I some_inv_to_some_inv_img.world_corresp_E)
-                    subgoal G2_1_1_2 for x by blast
-                    done
-                  subgoal G2_1_2
-                    using P Q T V apply auto
-                    subgoal for x                        
-                      by (smt A2 imageI morph_image_particulars possible_worlds_sig.\<P>_I someInvMorph_as_inv)
-                    done
-                  subgoal G2_1_3
-                    using P Q T V by auto
-                  done                    
-                done
-              done
-            done
-          done
+        apply (auto)
+        subgoal for t u
+          apply (cases \<open>\<phi>\<^sub>\<leftarrow> (\<phi> u) \<in> \<phi>\<^sub>\<leftarrow> ` \<phi> ` \<Union> \<W>\<^sub>A\<close> ; simp)
+          subgoal 
+            by (metis A2 img.morph_worlds_correspond_src_tgt
+                img.world_corresp_def someInvMorph_phi_phi src.\<P>_I src.\<P>_def)
+          by blast
         done
+      subgoal for _ y _ w\<^sub>4 
+        apply (auto)
+        by (metis id_on_eq(1) image_eqI someInvMorph_phi_phi 
+              src.\<P>_I src.\<P>_def)
       done
+    done  
+  show  \<open>\<exists>w\<^sub>s. w\<^sub>s \<Leftrightarrow>\<^sub>R w\<^sub>t\<close> if as: \<open>w\<^sub>t \<in> \<W>\<^sub>A\<close> for w\<^sub>t
+  proof -
+    have R1: \<open>w\<^sub>t \<inter> \<phi>\<^sub>\<leftarrow> ` \<phi> ` \<P>\<^sub>A = \<phi>\<^sub>\<leftarrow> ` \<phi> ` w\<^sub>t\<close>
+      apply auto
+      subgoal for x by (metis image_eqI someInvMorph_phi_phi)
+      subgoal 
+        by(smt (verit, best) A2 S1 img.morph_preserves_particulars 
+            img.morph_worlds_correspond_src_tgt 
+            particular_struct_morphism_sig.world_corresp_E someInvMorph_phi_phi 
+            some_inv_to_some_inv_img.I_img_eq_tgt_I 
+            some_inv_to_some_inv_img.morph_image_I src.\<P>_I that)      
+      using that by blast
+    show ?thesis
+    apply (simp only: some_inv_img_to_src.world_corresp_def[
+          of _ w\<^sub>t,simplified as])
+      apply (intro exI[of _ \<open>w\<^sub>t \<inter> \<P>\<^sub>R\<close>] ; simp ; simp only: R1)
+      using that by blast
+  qed
+qed
+
+
+private lemma \<^marker>\<open>tag (proof) aponly\<close> lemma1: 
+  \<open>particular_struct_morphism \<Gamma>\<^sub>1  \<Gamma>\<^sub>1 (id_on \<P>\<^sub>R \<circ>\<^bsub>\<P>\<^sub>A\<^esub> (\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>))\<close>
+  apply (intro particular_struct_morphism_comp[
+      of \<Gamma>\<^sub>1 \<open>MorphImg (\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>) \<Gamma>\<^sub>1\<close> \<open>\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>\<close> \<Gamma>\<^sub>1 
+        \<open>id_on \<P>\<^sub>R\<close>])
+  subgoal G1    
+    using img.particular_struct_morphism_axioms particular_struct_morphism_comp 
+          some_inv_to_some_inv_img.particular_struct_morphism_axioms 
+    by fastforce  
+  using S1 some_inv_img_to_src.particular_struct_morphism_axioms by presburger
+
+interpretation src_to_src: 
+  particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>1 
+  \<open>\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>  
+proof -
+  have R1: \<open>id_on \<P>\<^sub>R \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi> = \<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>\<close>
+    apply (intro ext)
+    subgoal for x            
+      apply (cases \<open>x \<in> \<P>\<^sub>A\<close>)
+      subgoal by (simp add: compose_eq)
+      by (simp add: compose_def)
     done
-  done
+  show \<open>particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>1 (\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>)\<close>
+    using lemma1 R1 by simp
+qed
 
-private lemma \<^marker>\<open>tag (proof) aponly\<close> lemma1: \<open>particular_struct_morphism \<Gamma>\<^sub>1  \<Gamma>\<^sub>1 (id \<circ> someInvMorph \<circ> \<phi>)\<close>
-  apply (intro particular_struct_morphism_comp[of _ \<open>MorphImg (someInvMorph \<circ> \<phi>) \<Gamma>\<^sub>1\<close>]
-               particular_struct_morphism_comp[of _ \<open>MorphImg \<phi> \<Gamma>\<^sub>1\<close>])
-  using img.particular_struct_morphism_axioms 
-        some_inv_to_some_inv_img.particular_struct_morphism_axioms 
-        some_inv_img_to_src.particular_struct_morphism_axioms 
-  by auto
-
-interpretation src_to_src: particular_struct_morphism \<Gamma>\<^sub>1  \<Gamma>\<^sub>1 \<open>someInvMorph \<circ> \<phi>\<close> \<open>TYPE('p\<^sub>1)\<close> \<open>TYPE('p\<^sub>1)\<close>
-  using lemma1 by simp
-
-private lemma \<^marker>\<open>tag (proof) aponly\<close> someInvMorph_to_endomorphism: \<open>particular_struct_endomorphism \<Gamma>\<^sub>1 (someInvMorph \<circ> \<phi>)\<close>
+private lemma \<^marker>\<open>tag (proof) aponly\<close> someInvMorph_to_endomorphism: \<open>particular_struct_endomorphism \<Gamma>\<^sub>1 (\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>)\<close>
   by (intro_locales)
 
-private lemma \<^marker>\<open>tag (proof) aponly\<close> someInvMorph_to_eq_class_choice: \<open>(someInvMorph \<circ> \<phi>) x = f (eq_class x)\<close> if \<open>x \<in> \<P>\<^sub>A\<close>
-  using that apply simp  
+private lemma \<^marker>\<open>tag (proof) aponly\<close> someInvMorph_to_eq_class_choice: 
+  \<open>(\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>) x = f (eq_class x)\<close> if \<open>x \<in> \<P>\<^sub>A\<close>
+  using that apply (simp only: compose_eq)    
   by (smt delta_E2 delta_dom f_in_X1 img.eq_class_I img.eq_classes_I img.eq_classes_disj 
         img.eq_classes_non_empty morph_image_I morph_image_def 
         particular_struct_morphism.same_image_I particular_struct_morphism_axioms 
         someInvMorph_delta_I)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> eq_class_choice_inv_morph_ex: \<open>\<exists>\<sigma>. particular_struct_endomorphism \<Gamma>\<^sub>1 \<sigma> \<and> (\<forall>x \<in> src.\<P>. \<sigma> x = f (eq_class x))\<close>
-  by (intro exI[of _ \<open>someInvMorph \<circ> \<phi>\<close>] conjI ballI someInvMorph_to_endomorphism someInvMorph_to_eq_class_choice ; simp)
+lemma \<^marker>\<open>tag (proof) aponly\<close> eq_class_choice_inv_morph_ex: 
+  \<open>\<exists>\<sigma>. particular_struct_endomorphism \<Gamma>\<^sub>1 \<sigma> \<and> 
+    (\<forall>x \<in> src.\<P>. \<sigma> x = f (eq_class x))\<close>
+  apply (intro exI[of _ \<open>\<phi>\<^sub>\<leftarrow> \<circ>\<^bsub>\<P>\<^sub>A\<^esub> \<phi>\<close>] conjI ballI
+          someInvMorph_to_eq_class_choice ; simp?)  
+  by (simp add: someInvMorph_to_endomorphism)
 
 end
 

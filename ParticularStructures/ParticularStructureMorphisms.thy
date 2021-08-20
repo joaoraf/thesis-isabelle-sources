@@ -11,7 +11,7 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 subsection \<open>Definitions\<close>
 
 theory \<^marker>\<open>tag aponly\<close> ParticularStructureMorphisms
- imports ParticularStructure "../Misc/WellfoundedExtra"
+ imports ParticularStructure "../Misc/WellfoundedExtra" "HOL-Library.FuncSet" "../Misc/FuncSetExtra"
 begin \<^marker>\<open>tag aponly\<close>
 
 no_notation \<^marker>\<open>tag aponly\<close> converse (\<open>(_\<inverse>)\<close> [1000] 999)
@@ -119,8 +119,8 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>The symbol \<open>\<phi>\<^sup
   to the type of particulars @{typ \<open>'p\<^sub>1\<close>} such that it \emph{inverts} the morphism
   function \<open>\<phi>\<close> with regards to the set of particulars of the source structure:\<close>
 
-definition inv_morph (\<open>\<phi>\<inverse>\<close>) where
-  \<open>\<phi>\<inverse> = inv_into src.\<P> \<phi>\<close>
+abbreviation inv_morph (\<open>\<phi>\<inverse>\<close>) where
+  \<open>\<phi>\<inverse> \<equiv> Inv src.\<P> \<phi>\<close>
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> morph_image_I[intro]: 
   \<open>x \<in> src.\<P> \<Longrightarrow> \<phi> x \<in> \<P>\<^sub>i\<^sub>m\<^sub>g\<close>
@@ -154,16 +154,19 @@ locale \<^marker>\<open>tag aponly\<close> pre_particular_struct_morphism =
     Typ\<^sub>p\<^sub>2 :: \<open>'p\<^sub>2 itself\<close> and
     Typ\<^sub>q :: \<open>'q itself\<close>  +
   assumes 
+    morphism_scope_substantials[intro!]: \<open>\<phi> \<in> src.\<S> \<rightarrow> tgt.\<S>\<close> and
+    morphism_scope_moments[intro!]: \<open>\<phi> \<in> src.\<M> \<rightarrow> tgt.\<M>\<close> and
+    morphism_extensional[intro!]: \<open>\<phi> \<in> extensional src.\<P>\<close> and
     quality_space_subset: 
       \<open>src.\<Q>\<S> \<subseteq> tgt.\<Q>\<S>\<close> and
-    morph_preserves_particulars[intro]: 
-      \<open>\<And>x. x \<in> src.\<P> \<Longrightarrow> \<phi> x \<in> tgt.\<P>\<close> and    
+(*    morph_preserves_particulars[intro]: 
+      \<open>\<And>x. x \<in> src.\<P> \<Longrightarrow> \<phi> x \<in> tgt.\<P>\<close> and    *)
     morph_reflects_inherence[simp]: 
       \<open>\<And>x y. \<lbrakk> x \<in> src.\<P> ; y \<in> src.\<P> \<rbrakk> \<Longrightarrow> 
               \<phi> x \<triangleleft>\<^sub>t \<phi> y \<longleftrightarrow> x \<triangleleft>\<^sub>s y\<close> and
-    morph_does_not_add_bearers: 
+(*    morph_does_not_add_bearers: 
       \<open>\<And>x z. \<lbrakk> x \<in> src.\<P> ; \<phi> x \<triangleleft>\<^sub>t z \<rbrakk> \<Longrightarrow> 
-        \<exists>y \<in> src.\<P>.  z = \<phi> y\<close> and    
+        \<exists>y \<in> src.\<P>.  z = \<phi> y\<close> and    *)
     morph_reflects_towardness[simp]: 
       \<open>\<And>x y. \<lbrakk> x \<in> src.\<P> ; y \<in> src.\<P> \<rbrakk> \<Longrightarrow>  
           \<phi> x \<longlongrightarrow>\<^sub>t \<phi> y \<longleftrightarrow> x \<longlongrightarrow>\<^sub>s y\<close> and
@@ -172,8 +175,209 @@ locale \<^marker>\<open>tag aponly\<close> pre_particular_struct_morphism =
           \<exists>y \<in> src.\<P>. z = \<phi> y\<close> and
     morph_reflects_quale_assoc[simp]: 
       \<open>\<And>x q. x \<in> src.\<P> \<Longrightarrow> x \<leadsto>\<^sub>s q \<longleftrightarrow> \<phi> x \<leadsto>\<^sub>t q\<close> 
-
 begin \<^marker>\<open>tag aponly\<close>
+
+lemma morphism_scope_particulars[intro!]: \<open>\<phi> \<in> src.\<P> \<rightarrow> tgt.\<P>\<close>
+  using morphism_scope_moments
+        morphism_scope_substantials
+        src.endurants_eq_un_moments_subst
+  by auto
+
+lemma  morph_preserves_particulars[intro]: 
+    \<open>\<And>x. x \<in> src.\<P> \<Longrightarrow> \<phi> x \<in> tgt.\<P>\<close> 
+  using morphism_scope_particulars by auto
+
+lemma morph_does_not_add_bearers: 
+  fixes x z
+  assumes \<open>x \<in> src.\<P>\<close> \<open>\<phi> x \<triangleleft>\<^sub>t z\<close>
+  shows \<open>\<exists>y \<in> src.\<P>.  z = \<phi> y\<close> 
+proof -
+  have A: \<open>\<phi> x \<in> tgt.\<M>\<close> using assms(2) by blast 
+  have B: \<open>\<phi> x \<in> tgt.\<P>\<close> using assms(1) morphism_scope_particulars by auto
+  have C: \<open>x \<in> src.\<M>\<close>
+  proof (rule ccontr)
+    assume \<open>x \<notin> src.\<M>\<close>
+    then have \<open>x \<in> src.\<S>\<close> using assms(1) by blast
+    then have \<open>\<phi> x \<in> tgt.\<S>\<close> using morphism_scope_substantials by blast
+    then have \<open>\<phi> x \<notin> tgt.\<M>\<close> by blast
+    then show False using A by blast
+  qed
+  then obtain y where \<open>x \<triangleleft>\<^sub>s y\<close> by blast
+  then have \<open>\<phi> x \<triangleleft>\<^sub>t \<phi> y\<close> 
+    by (meson src.inherence_scope morph_reflects_inherence
+        src.inherence_axioms)
+  then have \<open>z = \<phi> y\<close> using assms(2)
+    by (metis tgt.\<M>_I tgt.bearer_ex1)
+  then show ?thesis using assms(2) 
+    by (metis \<open>x \<triangleleft>\<^sub>s y\<close> src.endurantI2)
+qed
+
+lemma pre_particular_struct_morphism_eqI:
+  assumes 
+    \<open>pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<rho>\<close>
+    \<open>\<And>x. x \<in> src.\<P> \<Longrightarrow> \<phi> x = \<rho> x\<close>
+  shows \<open>\<phi> = \<rho>\<close>
+proof
+  fix x
+  interpret \<rho>: pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<rho> using assms by simp
+  show \<open>\<phi> x = \<rho> x\<close>
+  proof (cases \<open>x \<in> src.\<P>\<close>)
+    assume \<open>x \<in> src.\<P>\<close>
+    then show ?thesis using assms(2) by auto
+  next
+    assume \<open>x \<notin> src.\<P>\<close>
+    then obtain \<open>\<phi> x = undefined\<close> \<open>\<rho> x = undefined\<close>
+      using morphism_extensional \<rho>.morphism_extensional 
+      by (meson extensional_arb)
+    then show ?thesis by simp
+  qed
+qed
+
+lemma pre_particular_struct_morphism_comp[intro!]:
+  fixes \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
+  assumes \<open>pre_particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<rho>\<close>
+  shows \<open>pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 
+          (\<rho> \<circ>\<^bsub>src.\<P>\<^esub>  \<phi>)\<close>
+proof -
+  let ?f = \<open>\<rho> \<circ>\<^bsub>src.\<P>\<^esub>  \<phi>\<close>
+  interpret \<rho>: pre_particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<rho> \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>3)\<close>
+    using assms by simp
+  show ?thesis
+  proof (unfold_locales)
+    show G1: \<open>?f \<in> src.\<S> \<rightarrow> \<rho>.tgt.\<S>\<close>
+      using morphism_scope_substantials \<rho>.morphism_scope_substantials 
+      by (smt (verit) PiE Pi_I compose_eq src.endurantI3)
+    show G2: \<open>?f \<in> src.\<M> \<rightarrow> \<rho>.tgt.\<M>\<close>
+      using morphism_scope_moments \<rho>.morphism_scope_moments
+      by (smt (verit, ccfv_threshold) PiE Pi_I compose_eq src.endurantI1)
+    show G3: \<open>?f \<in> extensional src.\<P>\<close>
+      using morphism_extensional \<rho>.morphism_extensional by simp      
+    show G4: \<open>src.\<Q>\<S> \<subseteq> \<rho>.tgt.\<Q>\<S>\<close>
+      using quality_space_subset \<rho>.quality_space_subset by blast
+    show G5: \<open>\<rho>.tgt_inheres_in (?f x) (?f y) \<longleftrightarrow> x \<triangleleft>\<^sub>s y\<close> 
+      if as: \<open>x \<in> src.\<P>\<close> \<open>y \<in> src.\<P>\<close> for x y
+      using as morph_reflects_inherence \<rho>.morph_reflects_inherence      
+      by (simp add: compose_eq morph_preserves_particulars)      
+    show G6: \<open>\<rho>.tgt_towards (?f x) (?f y) \<longleftrightarrow> x \<longlongrightarrow>\<^sub>s y\<close>
+      if as: \<open>x \<in> src.\<P>\<close> \<open>y \<in> src.\<P>\<close> for x y
+      using as morph_reflects_towardness \<rho>.morph_reflects_towardness
+      by (simp add: compose_eq morph_preserves_particulars)      
+    show G7: \<open>\<exists>y \<in> src.\<P>. z = ?f y\<close> 
+      if as: \<open>x \<in> src.\<P>\<close> \<open>\<rho>.tgt_towards (?f x) z\<close> for x z
+      using as morph_does_not_add_towards \<rho>.morph_does_not_add_towards
+    proof -
+      have A: \<open>?f x = \<rho> (\<phi> x)\<close> 
+        using as(1) by (simp add: compose_eq)
+      have B: \<open>?f x \<in> \<rho>.tgt.\<M>\<close> using as(2) by blast 
+      then have C: \<open>x \<in> src.\<M>\<close> using G1 as(1) by blast
+      then have D: \<open>x \<in> src.\<P>\<close> by blast
+      then have E: \<open>\<phi> x \<in> tgt.\<P>\<close> by blast
+      then obtain y\<^sub>1 where F: \<open>y\<^sub>1 \<in> tgt.\<P>\<close> \<open>z = \<rho> y\<^sub>1\<close> \<open>\<phi> x \<longlongrightarrow>\<^sub>t y\<^sub>1\<close>                 
+        by (metis A \<rho>.morph_does_not_add_towards 
+                    \<rho>.morph_reflects_towardness as(2))
+      then obtain y\<^sub>2 where \<open>x \<in> src.\<P>\<close> \<open>y\<^sub>1 = \<phi> y\<^sub>2\<close> \<open>x \<longlongrightarrow>\<^sub>s y\<^sub>2\<close>        
+        by (metis D morph_does_not_add_towards morph_reflects_towardness)
+      then show ?thesis           
+        by (metis F(2) compose_eq src.towardness_scopeD(3))
+    qed
+    show \<open>x \<leadsto>\<^sub>s q \<longleftrightarrow> \<rho>.tgt_assoc_quale (?f x) q\<close> 
+      if as: \<open>x \<in> src.\<P>\<close> for x q
+      using as morph_reflects_quale_assoc \<rho>.morph_reflects_quale_assoc
+      by (simp add: compose_eq morph_preserves_particulars)      
+  qed
+qed
+
+lemma undefined_not_in_img[simp]: \<open>undefined \<notin> \<phi> ` src.\<P>\<close>
+proof (rule ccontr ; simp)
+  assume \<open>undefined \<in> \<phi> ` src.\<P>\<close>
+  then obtain x where A: \<open>x \<in> src.\<P>\<close> \<open>\<phi> x = undefined\<close>
+    using imageE by metis
+  have \<open>\<phi> x \<in> \<P>\<close> using A(1) 
+    by (metis A(2) morph_preserves_particulars
+        tgt.particulars_exist_in_some_world tgt.undefined_not_in_particulars)
+  then have \<open>\<phi> x \<noteq> undefined\<close> 
+    by (metis A(1) morph_preserves_particulars
+        tgt.particulars_exist_in_some_world tgt.undefined_not_in_particulars)
+  then show False using A(2) by simp
+qed
+
+end
+
+lemma card_gt_1_ex:
+  fixes x :: 'a
+  assumes \<open>card (UNIV :: 'a set) \<noteq> 1\<close>
+  shows \<open>\<exists>(y :: 'a). y \<noteq> x\<close>
+proof -
+  let ?U = \<open>UNIV :: 'a set\<close>
+  show ?thesis
+  proof (cases \<open>finite ?U\<close>)
+    assume A: \<open>finite ?U\<close>    
+    then have B: \<open>card ?U \<noteq> 0\<close> 
+      by simp
+    have C: \<open>1 < n\<close> if \<open>n \<noteq> 0\<close> \<open>n \<noteq> 1\<close> for n :: nat      
+      using that by auto
+    note [[show_types]]    
+    have \<open>1 < card ?U\<close> using C B assms by metis
+    then have \<open>0 < card (?U - {x})\<close> by (simp add: A)
+    then obtain y where \<open>y \<in> ?U - {x}\<close> 
+      by (metis all_not_in_conv card.empty less_nat_zero_code)
+    then have \<open>y \<noteq> x\<close> by blast
+    then show ?thesis by blast
+  next
+    assume A: \<open>\<not> finite ?U\<close>
+    then have \<open>infinite ?U\<close> by blast
+    then have \<open>infinite (?U - {x})\<close> by simp
+    then have \<open>?U - {x} \<noteq> \<emptyset>\<close> by (metis finite.emptyI)
+    then obtain y where \<open>y \<in> ?U - {x}\<close> by blast
+    then have \<open>y \<noteq> x\<close> by blast
+    then show ?thesis by blast
+  qed
+qed
+
+
+context
+  fixes \<Gamma> :: \<open>('p,'q) particular_struct\<close> and \<phi>
+  assumes A: \<open>pre_particular_struct_morphism \<Gamma> \<Gamma> \<phi>\<close>
+begin
+
+interpretation pre_particular_struct_morphism \<Gamma> \<Gamma> \<phi> using A by simp
+(*
+lemma   
+  assumes \<open>\<And>(\<rho> :: 'a \<Rightarrow> 'p). 
+                pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma> \<rho> \<Longrightarrow>
+               compose (ParticularStructure.particulars \<Gamma>\<^sub>1) \<phi> \<rho> = \<rho>\<close>
+          \<open>\<And>(\<rho> :: 'p \<Rightarrow> 'a). 
+                pre_particular_struct_morphism \<Gamma> \<Gamma>\<^sub>1 \<rho> \<Longrightarrow>
+                compose (ParticularStructure.particulars \<Gamma>) \<rho> \<phi> = \<rho>\<close>
+          \<open>x \<in> src.\<P>\<close>
+        shows \<open>\<phi> x = x\<close>
+proof (rule ccontr)
+
+  let ?U = \<open>UNIV :: 'p set\<close>
+  show ?thesis
+
+proof (cases \<open>card (UNIV :: 'p set) = 1\<close>)
+  assume A: \<open>card (UNIV :: 'p set) = 1\<close>
+  then have \<open>?U = {x}\<close> 
+    by (metis (full_types) UNIV_I card_1_singletonE singletonD)
+  then show ?thesis by blast
+next
+  assume A: \<open>card ?U \<noteq> 1\<close>     
+  then obtain y where \<open>y \<noteq> x\<close>  
+    using card_gt_1_ex[of x] by blast
+  
+  proof (cases \<open>finite ?U\<close>)
+    assume \<open>finite ?U\<close>
+    then have B: \<open>card ?U \<noteq> 0\<close> 
+      by simp
+    have C: \<open>1 < n\<close> if \<open>n \<noteq> 0\<close> \<open>n \<noteq> 1\<close> for n :: nat      
+      using that by auto
+    have \<open>1 < card (UNIV :: 'p set)\<close> using C[OF B A] 
+    
+  show ?thesis sorry
+  
+  oops
+*)
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   Thus, to define a notion of morphism based on the function \<open>\<phi>\<close>, we need to define under
   what conditions can such a function be judged as a mapping that preserves the structure
@@ -239,7 +443,10 @@ vice-versa:
 
 \<close>
 
+
+
 end \<^marker>\<open>tag aponly\<close>
+
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   Besides the preservation conditions detailed in these axioms, the following preservation
@@ -549,39 +756,33 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
   closed under composition:
 \<close>
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_morphism_comp:
+context
   fixes
     \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
     \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close> 
-  assumes
+    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close> and
+    \<phi>\<^sub>1\<^sub>2 :: \<open>'p\<^sub>1 \<Rightarrow> 'p\<^sub>2\<close> and
+    \<phi>\<^sub>2\<^sub>3 :: \<open>'p\<^sub>2 \<Rightarrow> 'p\<^sub>3\<close> 
+  assumes bassms:
     \<open>particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close>
     \<open>particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close>
-  shows
-    \<open>particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2)\<close>
+begin
+
+interpretation M2: particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3
+  using \<open>particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close> .
+
+interpretation M1: particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2
+  using \<open>particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close> .
+
+lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_morphism_comp:
+    \<open>particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2)\<close>
 proof \<^marker>\<open>tag (proof) aponly\<close> -
-  interpret M1: particular_struct_morphism \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>2\<close> \<open>\<phi>\<^sub>1\<^sub>2\<close> using assms by simp
-  interpret M2: particular_struct_morphism \<open>\<Gamma>\<^sub>2\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3\<close> using assms by simp
-
-  interpret M12: pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2\<close>
-    apply (unfold_locales ; simp?)
-    subgoal quality_space_subset 
-      using M1.quality_space_subset M2.quality_space_subset by auto
-    subgoal morph_preserves_particulars 
-      by (simp add: M1.morph_preserves_particulars M2.morph_preserves_particulars)
-    subgoal morph_reflects_inherence 
-      using M1.morph_preserves_particulars by auto
-    subgoal morph_does_not_add_bearers
-      by (metis M1.morph_does_not_add_bearers M1.morph_preserves_particulars M2.morph_does_not_add_bearers M2.morph_reflects_inherence)
-    subgoal morph_reflects_towardness 
-      using M1.morph_preserves_particulars by auto
-    subgoal morph_does_not_add_towards
-      by (metis M1.morph_does_not_add_towards M1.morph_preserves_particulars M2.morph_does_not_add_towards
-              M2.morph_reflects_towardness)
-    subgoal morph_reflects_quale_assoc 
-      by (simp add: M1.morph_preserves_particulars)
-    done
-
+  
+  interpret M12: pre_particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2\<close>
+    using M1.pre_particular_struct_morphism_comp
+          M2.pre_particular_struct_morphism_axioms
+    by metis
+  
   have m12_morph_worlds_correspond_src_tgt:
      \<open>\<exists>w\<^sub>t. M12.world_corresp w\<^sub>s w\<^sub>t\<close> if A[simp]: \<open>w\<^sub>s \<in> M1.src.\<W>\<close> for w\<^sub>s
   proof -
@@ -597,8 +798,8 @@ proof \<^marker>\<open>tag (proof) aponly\<close> -
         \<open>\<And>x. x \<in> M2.src.\<P> \<Longrightarrow> \<phi>\<^sub>2\<^sub>3 x \<in> w\<^sub>t \<longleftrightarrow> x \<in> w\<^sub>2\<close>
       using M2.world_corresp_E by blast
     show ?thesis
-      apply (intro exI[of _ w\<^sub>t] M12.world_corresp_I ; simp?)      
-      by (simp add: M1.morph_preserves_particulars)
+      apply (intro exI[of _ w\<^sub>t] M12.world_corresp_I ; simp?)            
+      by (simp add: M1.morph_preserves_particulars compose_eq)
   qed
     
   have m12_morph_worlds_correspond_tgt_src:
@@ -617,7 +818,7 @@ proof \<^marker>\<open>tag (proof) aponly\<close> -
       using M1.world_corresp_E by blast
     show ?thesis
       apply (intro exI[of _ w\<^sub>s] M12.world_corresp_I ; simp?)            
-      by (simp add: M1.morph_preserves_particulars)
+      by (simp add: M1.morph_preserves_particulars compose_eq)
   qed
 
   show ?thesis
@@ -626,6 +827,26 @@ proof \<^marker>\<open>tag (proof) aponly\<close> -
     subgoal using m12_morph_worlds_correspond_tgt_src .
     done
 qed
+
+context
+fixes
+    \<Gamma>\<^sub>4 :: \<open>('p\<^sub>4,'q) particular_struct\<close> and
+    \<phi>\<^sub>3\<^sub>4 :: \<open>'p\<^sub>3 \<Rightarrow> 'p\<^sub>4\<close> 
+  assumes m34:
+    \<open>particular_struct_morphism \<Gamma>\<^sub>3 \<Gamma>\<^sub>4 \<phi>\<^sub>3\<^sub>4\<close>
+begin
+
+interpretation M3: particular_struct_morphism \<Gamma>\<^sub>3 \<Gamma>\<^sub>4 \<phi>\<^sub>3\<^sub>4 using m34 .
+
+lemma morph_associative: 
+      \<open>\<phi>\<^sub>3\<^sub>4 \<circ>\<^bsub>M1.src.\<P>\<^esub> (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2) = 
+       (\<phi>\<^sub>3\<^sub>4 \<circ>\<^bsub>M2.src.\<P>\<^esub> \<phi>\<^sub>2\<^sub>3) \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2\<close>
+  apply (intro comp_map_associative)  
+  using M1.morph_image_def M1.morph_scope by presburger
+
+end
+
+end
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
 \begin{lemma}{$@{thm_name particular_struct_morphism_comp}$}
@@ -641,16 +862,21 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
   every particular structure:
 \<close>
 
+
+
 context \<^marker>\<open>tag aponly\<close> particular_struct
 begin \<^marker>\<open>tag aponly\<close>
 
+
 lemma \<^marker>\<open>tag (proof) aponly\<close> (in particular_struct) id_is_a_morphism[intro!]:  
-  \<open>particular_struct_morphism \<Gamma> \<Gamma> id\<close>
+  \<open>particular_struct_morphism \<Gamma> \<Gamma> (id_on \<P>)\<close>
 proof \<^marker>\<open>tag (proof) aponly\<close> -
   show ?thesis
     apply (unfold_locales ; auto?)
+    subgoal for x
+      by (subst id_on_eq(1)[of x endurants] ; blast)    
     subgoal for w
-      by (intro exI[of _ w] ; auto simp: particular_struct_morphism_sig.world_corresp_def)
+      by (intro exI[of _ w] ; auto simp: id_on_def particular_struct_morphism_sig.world_corresp_def)
     subgoal for w
       by (intro exI[of _ w] ; auto simp: particular_struct_morphism_sig.world_corresp_def)
     done
@@ -659,10 +885,12 @@ qed
 text \<^marker>\<open>tag bodyonly\<close> \<open>
 \begin{lemma}{$@{thm_name id_is_a_morphism}$}
 For any @{term[show_types] \<open>\<Gamma> :: ('p,'q) particular_struct\<close>}, the identity function
-on type @{typ \<open>'p\<close>} is a morphism of \<open>\<Gamma>\<close>:
+on the set of particulars of \<open>\<Gamma>\<close> is a morphism of \<open>\<Gamma>\<close>:
 \[ @{thm id_is_a_morphism [no_vars]} \]
 \end{lemma}
 \<close>
+
+
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
    Since the class of particular structure morphisms is a subclass of the class functions
@@ -863,95 +1091,99 @@ locale \<^marker>\<open>tag aponly\<close> particular_struct_permutation =
     Typ\<^sub>p :: \<open>'p itself\<close> and
     Typ\<^sub>q :: \<open>'q itself\<close>
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_injection_comp:
+
+context
   fixes
     \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
     \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
-  assumes
-    \<open>particular_struct_injection \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close>
-    \<open>particular_struct_injection \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close>
-  shows
-    \<open>particular_struct_injection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2)\<close>
-proof -
-  interpret M1: particular_struct_injection \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>2\<close> \<open>\<phi>\<^sub>1\<^sub>2\<close> using assms by simp
-  interpret M2: particular_struct_injection \<open>\<Gamma>\<^sub>2\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3\<close> using assms by simp
+    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close> and
+    \<phi>\<^sub>1\<^sub>2 :: \<open>'p\<^sub>1 \<Rightarrow> 'p\<^sub>2\<close> and
+    \<phi>\<^sub>2\<^sub>3 :: \<open>'p\<^sub>2 \<Rightarrow> 'p\<^sub>3\<close>
 
-  interpret particular_struct_morphism \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2\<close>
-    using particular_struct_morphism_comp 
-      M1.particular_struct_morphism_axioms M2.particular_struct_morphism_axioms 
+begin
+
+interpretation M1: particular_struct_morphism_sig \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>2\<close> \<open>\<phi>\<^sub>1\<^sub>2\<close> .
+interpretation M2: particular_struct_morphism_sig \<open>\<Gamma>\<^sub>2\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3\<close> .
+
+lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_injection_comp:
+  assumes 
+    \<open>particular_struct_injection \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close> 
+    \<open>particular_struct_injection \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close>
+  shows \<open>particular_struct_injection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2)\<close>
+proof -
+  interpret M1: particular_struct_injection \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>2\<close> \<open>\<phi>\<^sub>1\<^sub>2\<close> using assms(1) .
+  interpret M2: particular_struct_injection \<open>\<Gamma>\<^sub>2\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3\<close> using assms(2) .
+
+  interpret particular_struct_morphism \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2\<close> 
+    using particular_struct_morphism_comp
+      M1.particular_struct_morphism_axioms 
+      M2.particular_struct_morphism_axioms
     by metis
+
   show \<open>?thesis\<close>
     apply (unfold_locales)
     using M1.morph_is_injective M2.morph_is_injective 
-    by (metis M1.morph_image_def M1.morph_scope comp_inj_on inj_on_subset)
+    apply (intro inj_comp_map ; simp?)
+    apply (rule inj_on_subset[of \<phi>\<^sub>2\<^sub>3 M1.tgt.endurants] ; simp?)
+    by blast
 qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_surjection_comp:
-  fixes
-    \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
   assumes
     \<open>particular_struct_surjection \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close>
     \<open>particular_struct_surjection \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close>
   shows
-    \<open>particular_struct_surjection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2)\<close>
+    \<open>particular_struct_surjection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2)\<close>
 proof -
   interpret M1: particular_struct_surjection \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>2\<close> \<open>\<phi>\<^sub>1\<^sub>2\<close> using assms by simp
   interpret M2: particular_struct_surjection \<open>\<Gamma>\<^sub>2\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3\<close> using assms by simp
 
-  interpret particular_struct_morphism \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2\<close>
+  interpret particular_struct_morphism \<open>\<Gamma>\<^sub>1\<close> \<open>\<Gamma>\<^sub>3\<close> \<open>\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2\<close>
     using particular_struct_morphism_comp 
       M1.particular_struct_morphism_axioms M2.particular_struct_morphism_axioms 
     by metis
   show \<open>?thesis\<close>
-    apply (unfold_locales)
-    using M1.morph_is_surjective M2.morph_is_surjective    
+    apply (unfold_locales)    
+    apply (simp only: map_comp_img_eq_comp_imp[of \<open>M1.src.\<P>\<close> \<open>M1.src.\<P>\<close> \<phi>\<^sub>2\<^sub>3])
+    using M2.morph_is_surjective[simplified M1.morph_is_surjective[symmetric]]    
     by (metis image_comp)
 qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_bijection_comp:
-  fixes
-    \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
   assumes
     \<open>particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1\<^sub>2\<close>
     \<open>particular_struct_bijection \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2\<^sub>3\<close>
   shows
-    \<open>particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2)\<close>
+    \<open>particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>M1.src.\<P>\<^esub> \<phi>\<^sub>1\<^sub>2)\<close>
   using assms particular_struct_bijection_def
     particular_struct_injection_comp
     particular_struct_surjection_comp
   by smt
 
+end
+
 lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_endomorphism_comp:
-  fixes
-    \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
+  fixes \<Gamma> and \<phi>\<^sub>1 \<phi>\<^sub>2
   assumes
     \<open>particular_struct_endomorphism \<Gamma> \<phi>\<^sub>1\<close>
     \<open>particular_struct_endomorphism \<Gamma> \<phi>\<^sub>2\<close>
   shows
-    \<open>particular_struct_endomorphism \<Gamma> (\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1)\<close>  
-  by (meson assms particular_struct_endomorphism_def 
-            particular_struct_morphism_comp)
+    \<open>particular_struct_endomorphism \<Gamma> (\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>1)\<close>  
+  using assms particular_struct_endomorphism_def
+        particular_struct_morphism_comp
+  by blast
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_permutation_comp:
-  fixes
-    \<Gamma>\<^sub>1 :: \<open>('p\<^sub>1,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>2 :: \<open>('p\<^sub>2,'q) particular_struct\<close> and
-    \<Gamma>\<^sub>3 :: \<open>('p\<^sub>3,'q) particular_struct\<close>
+  fixes  \<Gamma> and  \<phi>\<^sub>1 \<phi>\<^sub>2
   assumes
     \<open>particular_struct_permutation \<Gamma> \<phi>\<^sub>1\<close>
     \<open>particular_struct_permutation \<Gamma> \<phi>\<^sub>2\<close>
   shows
-    \<open>particular_struct_permutation \<Gamma> (\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1)\<close>  
+    \<open>particular_struct_permutation \<Gamma> (\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>1)\<close>  
   by (meson assms particular_struct_permutation_def 
             particular_struct_bijection_comp
             particular_struct_endomorphism_comp)
+  
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   The following sets represent the collections of
@@ -1044,33 +1276,41 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_iff[simp]: \<open
 abbreviation \<^marker>\<open>tag aponly\<close> \<open>invMorph \<equiv> particular_struct_morphism_sig.inv_morph\<close>
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> morphisms_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> Morphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> Morphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> 
+    \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>a \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
   by (simp add: particular_struct_morphism_comp)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> injective_morphisms_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> 
+    \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>a \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
   by (simp add: particular_struct_injection_comp)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> surjective_morphisms_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> 
+    \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>a \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
   by (simp add: particular_struct_surjection_comp)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> bijective_morphisms_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> ; \<phi>\<^sub>b \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub> \<rbrakk> \<Longrightarrow> 
+    \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>a \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>  
   by (simp add: particular_struct_bijection_comp)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> endomorphisms_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub> ; \<phi>\<^sub>b \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub> ; \<phi>\<^sub>b \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub> \<rbrakk> \<Longrightarrow> 
+  \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>a \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>  
   by (simp add: particular_struct_endomorphism_comp)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_closed_under_comp[intro]:
-  \<open>\<lbrakk> \<phi>\<^sub>a \<in> Perms\<^bsub>\<Gamma>\<^esub> ; \<phi>\<^sub>b \<in> Perms\<^bsub>\<Gamma>\<^esub> \<rbrakk> \<Longrightarrow> \<phi>\<^sub>b \<circ> \<phi>\<^sub>a \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close>  
+  \<open>\<lbrakk> \<phi>\<^sub>a \<in> Perms\<^bsub>\<Gamma>\<^esub> ; \<phi>\<^sub>b \<in> Perms\<^bsub>\<Gamma>\<^esub> \<rbrakk> \<Longrightarrow> 
+    \<phi>\<^sub>b \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>a \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close>  
   by (simp add: particular_struct_permutation_comp)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> injections_are_morphisms: \<open>\<phi> \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> injections_are_morphisms: 
+  \<open>\<phi> \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
   by (simp add: particular_struct_injection_def)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> surjections_are_morphisms: \<open>\<phi> \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> surjections_are_morphisms: 
+  \<open>\<phi> \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
   by (simp add: particular_struct_surjection_def)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_injections_and_surjections:   
@@ -1081,27 +1321,33 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_eq_injections_int_s
     \<open>BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> = InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<inter> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>  
   by (intro set_eqI ; simp only: Int_iff bijections_are_injections_and_surjections )
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_injections: \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_injections: 
+  \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
   by (simp add: bijections_are_injections_and_surjections particular_struct_bijection_def)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_surjections: \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_surjections: 
+  \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
   by (simp add: bijections_are_injections_and_surjections particular_struct_bijection_def)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_morphisms: \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_are_morphisms: 
+  \<open>\<phi> \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
   using bijections_are_injections
         injections_are_morphisms 
   by metis
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> endormorphisms_are_morphisms: \<open>Morphs\<^bsub>\<Gamma>,\<Gamma>\<^esub> = EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> endormorphisms_are_morphisms: 
+  \<open>Morphs\<^bsub>\<Gamma>,\<Gamma>\<^esub> = EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
   apply (intro set_eqI)
   by (simp add: endomorphisms_def particular_struct_endomorphism_def 
           particular_struct_morphism_def
           pre_particular_struct_morphism_def)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_endomorphisms: \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_endomorphisms: 
+  \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> EndoMorphs\<^bsub>\<Gamma>\<^esub>\<close>
   by (simp add: particular_struct_permutation_def)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_bijections: \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> BijMorphs\<^bsub>\<Gamma>,\<Gamma>\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_bijections: 
+  \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> BijMorphs\<^bsub>\<Gamma>,\<Gamma>\<^esub>\<close>
   by (simp add: particular_struct_permutation_def)
      
 
@@ -1124,8 +1370,7 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 lemma \<^marker>\<open>tag (proof) aponly\<close> inv_morph_morph[simp]:
   assumes \<open>x \<in> src.\<P>\<close>
   shows \<open>\<phi>\<inverse> (\<phi> x) = x\<close>
-  apply (simp add: inv_morph_def)
-  using inv_into_f_f[OF morph_is_injective] assms by simp
+  using Inv_eq[OF morph_is_injective,OF assms] by simp
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   \begin{lemma}{$@{thm_name inv_morph_morph}$}
@@ -1136,7 +1381,8 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
   \end{lemma}
 \<close>
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> morph_bij_on_img[intro!,simp]: \<open>bij_betw \<phi> src.\<P> \<P>\<^sub>i\<^sub>m\<^sub>g\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> morph_bij_on_img[intro!,simp]: 
+  \<open>bij_betw \<phi> src.\<P> \<P>\<^sub>i\<^sub>m\<^sub>g\<close>
   apply (simp only: morph_image_def)
   by (intro inj_on_imp_bij_betw ; simp)
 
@@ -1147,8 +1393,11 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
   \end{lemma}
 \<close>
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> phi_inv_img[simp]: \<open>\<phi>\<inverse> ` \<P>\<^sub>i\<^sub>m\<^sub>g = src.\<P>\<close>  
-  by (simp add: inv_morph_def morph_image_def)
+lemma \<^marker>\<open>tag (proof) aponly\<close> phi_inv_img[simp]: 
+  \<open>\<phi>\<inverse> ` \<P>\<^sub>i\<^sub>m\<^sub>g = src.\<P>\<close>  
+  using Inv_inj_surj[OF morph_is_injective] morph_image_def 
+  by simp
+  
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   \begin{lemma}{$@{thm_name phi_inv_img}$}
@@ -1173,9 +1422,9 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
   \end{lemma}
 \<close>
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> phi_inv_bij_on_src_I[intro!,simp]: \<open>bij_betw \<phi>\<inverse> \<P>\<^sub>i\<^sub>m\<^sub>g src.\<P> \<close>
-  apply (simp only: phi_inv_img[symmetric])
-  by (intro inj_on_imp_bij_betw ; simp)
+lemma \<^marker>\<open>tag (proof) aponly\<close> phi_inv_bij_on_src_I[intro!,simp]: 
+  \<open>bij_betw \<phi>\<inverse> \<P>\<^sub>i\<^sub>m\<^sub>g src.\<P> \<close>
+  by (simp add: morph_image_def)
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   \begin{lemma}{$@{thm_name phi_inv_bij_on_src_I}$}
@@ -1191,9 +1440,8 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 lemma \<^marker>\<open>tag (proof) aponly\<close> morph_inv_morph_img:
   assumes \<open>x \<in> \<P>\<^sub>i\<^sub>m\<^sub>g\<close>
   shows \<open>\<phi> (\<phi>\<inverse> x) = x\<close>
-  apply (simp add: inv_morph_def)
-  apply (intro f_inv_into_f)
-  using assms by blast
+  using assms f_Inv_eq[of x \<phi> src.\<P>] morph_image_def 
+  by simp
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   \begin{lemma}{$@{thm_name morph_inv_morph_img}$}
@@ -1325,9 +1573,7 @@ target structure:
 lemma \<^marker>\<open>tag (proof) aponly\<close> inv_morph_morph[simp]:
   assumes \<open>x \<in> tgt.\<P>\<close>
   shows \<open>\<phi> (\<phi>\<inverse> x) = x\<close>
-  apply (simp add: inv_morph_def)
-  using f_inv_into_f morph_is_surjective assms 
-  by metis
+  using assms by simp
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
 \begin{lemma}{$@{thm_name inv_morph_morph}$}
@@ -1347,14 +1593,12 @@ proof -
     using world_corresp_E[OF A] by metis  
   have C: \<open>\<phi> ` w\<^sub>s = w\<^sub>t\<close>
     apply (intro set_eqI ; simp add: image_iff B Bex_def ; intro iffI ; (elim exE conjE)? ; hypsubst? ; simp?)
-    subgoal for z
+    subgoal G1 for z
       using B(2) assms by blast
     subgoal premises P for z
-      apply (rule exI[of _ \<open>\<phi>\<inverse> z\<close>])
-      apply (intro conjI exI[of _ \<open>\<phi>\<inverse> z\<close>])      
-      supply B1 = \<open>\<And>P. (\<lbrakk>w\<^sub>t \<in> tgt.\<W>; \<And>x. x \<in> src.endurants \<Longrightarrow> (x \<in> w\<^sub>s) = (\<phi> x \<in> w\<^sub>t)\<rbrakk> \<Longrightarrow> P) \<Longrightarrow> P\<close>
-      subgoal by (metis I_img_eq_tgt_I P B1 inv_into_into inv_morph_morph inv_morph_def morph_image_def tgt.\<P>_I)
-      by (metis P B1 inv_morph_morph tgt.\<P>_I)      
+      apply (rule exI[of _ \<open>\<phi>\<inverse> z\<close>])      
+      by (metis Inv_def P B inv_into_into inv_morph_morph 
+                morph_is_surjective tgt.\<P>_I)      
     done
   then show \<open>?thesis\<close>
     using B(1) by simp
@@ -1504,9 +1748,10 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 lemma \<^marker>\<open>tag (proof) aponly\<close> phi_phi_inv_world[simp]: 
   assumes \<open>w \<in> tgt.\<W>\<close>
   shows \<open>\<phi> ` \<phi>\<inverse> ` w = w\<close>  
-  by (simp add: assms image_inv_into_cancel inv_morph_def 
-      possible_worlds.worlds_are_made_of_particulars tgt.possible_worlds_axioms)
-
+  by (simp add: assms image_Inv_cancel
+          possible_worlds.worlds_are_made_of_particulars 
+          tgt.possible_worlds_axioms)
+  
 text \<^marker>\<open>tag bodyonly\<close> \<open> 
   \begin{lemma}{$@{thm_name phi_phi_inv_world}$}
   The image of the inverse function is a right-inverse of the image of the morphism function
@@ -1522,7 +1767,9 @@ proof -
   have \<open>x \<in> w \<Longrightarrow> x \<in> src.\<P>\<close> for x using assms by blast
   then have \<open>\<phi>\<inverse> (\<phi> x) = x\<close> if \<open>x \<in> w\<close> for x by (simp add: that)
   then show \<open>?thesis\<close>    
-    by (simp add: assms particular_struct_morphism_sig.inv_morph_def src.worlds_are_made_of_particulars) 
+    using src.worlds_are_made_of_particulars    
+    by (metis assms inv_into_image_cancel morph_is_injective 
+         phi_phi_inv_world world_preserve_img world_preserve_inv_img1) 
 qed
 
 text \<^marker>\<open>tag bodyonly\<close> \<open> 
@@ -1667,6 +1914,17 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> tgt_world_corresp_inv_image_if
   shows \<open>w' \<Leftrightarrow> w \<longleftrightarrow> w' = \<phi>\<inverse> ` w\<close>
   by (meson assms tgt_world_corresp_inv_image tgt_world_corresp_unique)
 
+lemma tgt_substantials_eq_img: \<open>tgt.\<S> = \<phi> ` src.\<S>\<close>
+  apply auto
+  by (metis I_img_eq_tgt_I image_eqI inv_morph_morph 
+       morph_preserves_moments phi_inv_scope src.particular_cases_1)
+
+lemma tgt_moments_eq_img: \<open>tgt.\<M> = \<phi> ` src.\<M>\<close>
+  apply auto
+  by (metis imageI morph_image_E morph_is_surjective
+          morph_preserves_moments_simp particular_struct_morphism_sig.morph_image_def 
+          tgt.\<M>_E tgt.inherence_scope)  
+
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   \begin{lemma}{$@{thm_name tgt_world_corresp_inv_image_iff}$}
   Conversely, the only possible world of the source structure that corresponds 
@@ -1677,16 +1935,23 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 \<close>
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> inv_is_bijective_morphism[simp,intro!]: \<open>particular_struct_bijection \<Gamma>\<^sub>2 \<Gamma>\<^sub>1 (\<phi>\<inverse>)\<close>
-proof -  
+proof -    
+  note AA = Inv_scope'[of \<phi> \<open>src.\<P>\<close>,simplified]
   interpret I: pre_particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>1 \<open>\<phi>\<inverse>\<close> \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
     apply (unfold_locales)
-    subgoal G1 by simp
-    subgoal G2 by (simp add: phi_inv_scope)
+    subgoal G1
+      by (auto simp add: tgt_substantials_eq_img)
+    subgoal G2
+      apply (simp add: tgt_moments_eq_img ; intro AA)
+      by auto
+    subgoal G3
+      using Inv_extensional[of \<open>src.\<P>\<close> \<phi>] morph_is_surjective
+      by simp
+    subgoal G4 by (simp add: phi_inv_scope)
     subgoal G5 by (metis inv_inheres_in_reflects)    
     subgoal G6 using phi_inv_img by auto
-    subgoal G7 by simp
-    subgoal G8 by blast      
-    by (simp add: G2)
+    subgoal G7 by blast
+    by simp          
 
   interpret I: particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>1 \<open>\<phi>\<inverse>\<close> \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
     apply (unfold_locales)
@@ -1727,17 +1992,17 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_inj_comp[intr
   assumes 
     \<open>\<phi>\<^sub>1 \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
     \<open>\<phi>\<^sub>2 \<in> Morphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub>\<close>
-    \<open>\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1 \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>
+    \<open>\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>1 \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>
   shows \<open>\<phi>\<^sub>1 \<in> InjMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>  
 proof -
   interpret phi1: particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1
     using assms(1) by simp
   interpret phi2: particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2
     using assms(2) by simp
-  interpret phi21: particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1\<close>
+  interpret phi21: particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>1\<close>
     using assms(3) by simp  
   have \<open>inj_on \<phi>\<^sub>1 phi1.src.\<P>\<close>
-    using phi21.morph_is_injective inj_on_imageI2 by blast
+    using phi21.morph_is_injective inj_on_map_comp_imageI2 by blast
   then show ?thesis
     by (simp ; unfold_locales ; simp)
 qed
@@ -1746,14 +2011,14 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_surj_comp[int
   assumes 
     \<open>\<phi>\<^sub>1 \<in> Morphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>2\<^esub>\<close>
     \<open>\<phi>\<^sub>2 \<in> Morphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub>\<close>
-    \<open>\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1 \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>
+    \<open>\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>1 \<in> BijMorphs\<^bsub>\<Gamma>\<^sub>1,\<Gamma>\<^sub>3\<^esub>\<close>
   shows \<open>\<phi>\<^sub>2 \<in> SurjMorphs\<^bsub>\<Gamma>\<^sub>2,\<Gamma>\<^sub>3\<^esub>\<close>  
 proof -
   interpret phi1: particular_struct_morphism \<Gamma>\<^sub>1 \<Gamma>\<^sub>2 \<phi>\<^sub>1
     using assms(1) by simp
   interpret phi2: particular_struct_morphism \<Gamma>\<^sub>2 \<Gamma>\<^sub>3 \<phi>\<^sub>2
     using assms(2) by simp
-  interpret phi21: particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1\<close>
+  interpret phi21: particular_struct_bijection \<Gamma>\<^sub>1 \<Gamma>\<^sub>3 \<open>\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>1\<close>
     using assms(3) by simp    
   have \<open>phi2.tgt.\<P> \<subseteq> \<phi>\<^sub>2 ` phi2.src.\<P>\<close>
     apply (simp add: image_def Bex_def ; safe)
@@ -1761,8 +2026,8 @@ proof -
       using [[show_sorts]]
       using exI[of _ \<open>invMorph \<Gamma>\<^sub>1 (\<phi>\<^sub>2 \<circ> \<phi>\<^sub>1) x\<close>]
     using phi21.morph_is_surjective 
-    by (metis comp_def phi1.morph_preserves_particulars 
-        phi21.inv_morph_morph phi21.morph_image_def phi21.phi_inv_scope)
+    by (metis (mono_tags, lifting) compose_eq phi1.morph_preserves_particulars 
+          phi21.inv_morph_morph phi21.morph_image_def phi21.phi_inv_scope)
     done
   then show ?thesis
     apply (simp ;  unfold_locales)
@@ -1786,14 +2051,11 @@ abbreviation \<^marker>\<open>tag aponly\<close> lift_morph_2_1 ::
    bool\<close> where
   \<open>lift_morph_2_1 \<Gamma> \<phi> p x z \<equiv> lift_morph_1 \<Gamma> \<phi> (\<lambda>\<Gamma> x. p \<Gamma> x z) x\<close>
 
-abbreviation \<^marker>\<open>tag aponly\<close> lift_world where
-  \<open>lift_world \<phi> w \<equiv> \<phi> ` w\<close>
-
 definition \<^marker>\<open>tag aponly\<close> MorphImg :: \<open>('p\<^sub>1 \<Rightarrow> 'p\<^sub>2) \<Rightarrow> ('p\<^sub>1,'q) particular_struct \<Rightarrow> ('p\<^sub>2,'q) particular_struct\<close>  
   where \<open>MorphImg \<phi> \<Gamma> \<equiv>
   \<lparr>
     ps_quality_spaces = ps_quality_spaces \<Gamma>,
-    ps_worlds = lift_world \<phi> ` ps_worlds \<Gamma>,
+    ps_worlds = ((`) \<phi>) ` ps_worlds \<Gamma>,
     ps_inheres_in = lift_morph_2 \<Gamma> \<phi> ps_inheres_in,
     ps_assoc_quale = lift_morph_2_1 \<Gamma> \<phi> ps_assoc_quale,
     ps_towards = lift_morph_2 \<Gamma> \<phi> ps_towards
@@ -1845,11 +2107,14 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> morph_img_phi_eq_itself[simp]:
         ; (intro ext)?
         ; auto?)
   subgoal G1 using phi_phi_inv_world by blast
-  subgoal G2 by (metis I_img_eq_tgt_I inherence.all_inherence_axioms(3) inherence_axioms inv_morph_morph morph_reflects_inherence phi_inv_scope)
+  subgoal G2 for x y 
+    by (metis inherence_scope inv_inheres_in_reflects inv_morph_morph)
   subgoal G3 using assoc_quale_scopeD(1) morph_reflects_quale_assoc by blast
-  subgoal G4 by (metis particular_struct_morphism_image_simps(4) tgt_is_morph_img)
+  subgoal G4 by (metis particular_struct_morphism_image_simps(4)
+                  tgt_is_morph_img)
   subgoal G5 using morph_reflects_towardness by blast 
-  by (metis I_img_eq_tgt_I inv_towardness_reflects morph_inv_morph_img towardness_scopeD(2) towardness_scopeD(3))
+  by (metis I_img_eq_tgt_I inv_towardness_reflects 
+      morph_inv_morph_img towardness_scopeD(2) towardness_scopeD(3))
 
 end
 
@@ -1926,7 +2191,7 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> particular_struct_bijection_1_
     \<open>particular_struct_bijection_1 \<Gamma>\<^sub>1 \<phi>\<^sub>1\<^sub>2\<close>
     \<open>particular_struct_bijection_1 (MorphImg \<phi>\<^sub>1\<^sub>2 \<Gamma>\<^sub>1) \<phi>\<^sub>2\<^sub>3\<close>
   shows
-    \<open>particular_struct_bijection_1 \<Gamma>\<^sub>1 (\<phi>\<^sub>2\<^sub>3 \<circ> \<phi>\<^sub>1\<^sub>2)\<close>
+    \<open>particular_struct_bijection_1 \<Gamma>\<^sub>1 (\<phi>\<^sub>2\<^sub>3 \<circ>\<^bsub>particulars \<Gamma>\<^sub>1\<^esub> \<phi>\<^sub>1\<^sub>2)\<close>
   using assms
     particular_struct_bijection_comp
     particular_struct_bijection_iff_particular_struct_bijection_1
@@ -1973,14 +2238,17 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> bijections_iff[simp]:
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> bijections1_iff_bijections_to_morph_img: 
   \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub> \<longleftrightarrow> \<phi> \<in> BijMorphs\<^bsub>\<Gamma>,MorphImg \<phi> \<Gamma>\<^esub>\<close>
-  by (intro iffI ; simp add: particular_struct_bijection_iff_particular_struct_bijection_1)
+  by (intro iffI ; 
+      simp add: particular_struct_bijection_iff_particular_struct_bijection_1)
     
 lemma \<^marker>\<open>tag (proof) aponly\<close> bijections1_are_morphisms: 
   \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>, MorphImg \<phi> \<Gamma>\<^esub>\<close>  
   by (meson bijections1_iff_bijections_to_morph_img bijections_are_morphisms)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_bijections1:  \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close>  
-  by (simp add: particular_struct_permutation.particular_struct_permutation_to_isomorphism_1)
+lemma \<^marker>\<open>tag (proof) aponly\<close> permutations_are_bijections1:  
+  \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<Longrightarrow> \<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close>  
+  by (simp add: 
+      particular_struct_permutation.particular_struct_permutation_to_isomorphism_1)
 
 
 definition \<^marker>\<open>tag aponly\<close> isomorphic_models
@@ -2019,9 +2287,24 @@ begin
 lemma \<^marker>\<open>tag (proof) aponly\<close> MorphImg_of_id[simp]: \<open>MorphImg id \<Gamma> = \<Gamma>\<close>  
   by (rule ; simp)
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_isomorphism[intro!,simp]: \<open>particular_struct_bijection_1 \<Gamma> id\<close>
+lemma morph_img_eq[simp]: \<open>MorphImg (id_on \<E>) \<Gamma> = \<Gamma>\<close>
+  apply (simp only: MorphImg_def ; auto ; (intro ext iffI)?
+         ; (elim exE conjE)? ; hypsubst_thin?)
+  subgoal G1 by (simp add: Union_upper \<P>_def id_on_img)
+  subgoal G2 by (simp add: Union_upper \<P>_def id_on_img)
+  subgoal G3 by (simp add: inherence_scope)
+  subgoal G4 by (metis id_on_eq(1) inherence_scope)
+  subgoal G5 by (simp add: assoc_quale_scopeD(1))
+  subgoal G6 by (metis assoc_quale_scopeD(1) id_on_eq(1))
+  subgoal G7 by (simp add: towardness_scopeD(2) towardness_scopeD(3))    
+  by (metis id_on_eq(1) towardness_scopeD(2) towardness_scopeD(3))
+
+
+lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_isomorphism[intro!,simp]: \<open>particular_struct_bijection_1 \<Gamma> (id_on (particulars \<Gamma>))\<close>
 proof -
-  interpret particular_struct_morphism \<Gamma> \<Gamma> id    
+  have \<S>_subset[simp]: \<open>\<S> \<subseteq> \<E>\<close> by auto
+  have \<M>_subset[simp]: \<open>\<M> \<subseteq> \<E>\<close> by auto
+  have A: \<open>particular_struct_morphism \<Gamma> \<Gamma> (id_on (particulars \<Gamma>))\<close>
     apply (simp add: 
         particular_struct_bijection_1_def
         particular_struct_injection_def
@@ -2029,7 +2312,8 @@ proof -
         pre_particular_struct_morphism_def
         particular_struct_surjection_def ; 
         intro conjI ; unfold_locales ; simp)
-    subgoal using inherence_scope by blast
+    subgoal by (rule id_on_extensional ; simp)
+    subgoal by (rule id_on_extensional ; simp)      
     subgoal using towardness_scope by blast
     subgoal G1 for w
       by (intro exI[of _ \<open>w\<close>]
@@ -2038,36 +2322,57 @@ proof -
       by (intro exI[of _ \<open>w\<close>]
           particular_struct_morphism_sig.world_corresp_I ; simp)
     done
-  show ?thesis
-    apply (simp add: 
-      particular_struct_bijection_1_def
-      particular_struct_injection_def
-      particular_struct_surjection_def ; intro conjI ; unfold_locales)
-    by auto
+  then interpret particular_struct_morphism \<Gamma> \<Gamma> \<open>id_on (particulars \<Gamma>)\<close> .
+  interpret P: particular_struct_morphism \<Gamma> \<Gamma> \<open>id_on \<E>\<close>
+    using A by simp
+  show ?thesis    
+    by (simp add: particular_struct_bijection_1_def ; safe ; 
+          unfold_locales ; simp)
 qed
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_a_permutation[intro!,simp]: \<open>particular_struct_permutation \<Gamma> id\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_a_permutation[intro!,simp]: \<open>particular_struct_permutation \<Gamma> (id_on (particulars \<Gamma>))\<close>
 proof -
-  interpret id: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>id\<close> by simp
-  show \<open>?thesis\<close>
-    by (simp add: particular_struct_permutation_def 
-          id.particular_struct_bijection_axioms[simplified]
-          particular_struct_endomorphism_def
-          id.particular_struct_morphism_axioms[simplified]
-          ufo_particular_theory_axioms)
+  interpret id: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>id_on (particulars \<Gamma>)\<close>
+    using id_is_isomorphism .
+  show \<open>?thesis\<close>    
+    apply (intro_locales ; simp?)
+    subgoal 
+      using id.src.id_is_a_morphism particular_struct_morphism.axioms(1)
+            pre_particular_struct_morphism.axioms(3) 
+      by fastforce
+    subgoal 
+      using id.src.id_is_a_morphism particular_struct_morphism_def 
+      by auto
+    subgoal 
+      using id.particular_struct_injection_axioms particular_struct_injection_def by auto
+    subgoal
+      by (unfold_locales ; simp)
+    done
+qed
+
+lemma \<^marker>\<open>tag (proof) aponly\<close> id_is_an_injection[intro!,simp]: 
+  \<open>particular_struct_injection \<Gamma> \<Gamma> (id_on (particulars \<Gamma>))\<close>
+proof -
+  interpret P: particular_struct_permutation \<Gamma> \<open>id_on (particulars \<Gamma>)\<close>
+    by blast
+  show ?thesis
+    by intro_locales
 qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> id_in_isomorphs[intro!,simp]:
   fixes X  
-  shows \<open>id \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close>
+  shows \<open>id_on (particulars \<Gamma>) \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close>
   by (intro bijections_I id_is_isomorphism)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> itself_in_isomodels[intro!,simp]: 
   fixes X
   shows \<open>\<Gamma> \<in> IsoModels\<^bsub>\<Gamma>,X\<^esub>\<close>
-  by (intro isomorphic_models_I[of \<open>id\<close>] id_in_isomorphs ; simp)
+  apply (intro isomorphic_models_I[of \<open>id_on (particulars \<Gamma>)\<close>] ; simp)  
+  using \<Gamma>_simps(2) id_is_isomorphism by presburger
+  
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> id_in_permutations[intro!,simp]: \<open>id \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close>  
+lemma \<^marker>\<open>tag (proof) aponly\<close> id_in_permutations[intro!,simp]: 
+  \<open>id_on (particulars \<Gamma>) \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close>  
   by (intro permutations_I id_is_a_permutation)
 
 end
@@ -2115,54 +2420,82 @@ qed
 
 end
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> morph_img_comp[simp]: \<open>MorphImg (\<phi>\<^sub>1 \<circ> \<phi>\<^sub>2) \<Gamma> = MorphImg \<phi>\<^sub>1 (MorphImg \<phi>\<^sub>2 \<Gamma>)\<close>
-  apply (subst eq_commute)
-  apply (auto ; (intro ext)?)
-  subgoal for w\<^sub>1
-    by (intro exI[of _ \<open>w\<^sub>1\<close>] ; simp ; blast)
-  subgoal for w\<^sub>1
-    by (intro exI[of _ \<open>\<phi>\<^sub>2 ` w\<^sub>1\<close>] ; simp ; blast)
-  subgoal for x y
-    apply (intro iffI ; elim exE conjE ; hypsubst_thin)
-    subgoal for _ _ x\<^sub>1 y\<^sub>1
-      by (rule exI[of _ \<open>x\<^sub>1\<close>] ; rule exI[of _ \<open>y\<^sub>1\<close>] ; simp)
-    subgoal for x\<^sub>1 y\<^sub>1
-      apply (rule exI[of _ \<open>\<phi>\<^sub>2 x\<^sub>1\<close>] ; 
-          rule exI[of _ \<open>\<phi>\<^sub>2 y\<^sub>1\<close>] ;
-          intro conjI ; simp?)
-      by (rule exI[of _ \<open>x\<^sub>1\<close>] ; rule exI[of _ \<open>y\<^sub>1\<close>] ; simp)
-    done
-  subgoal for x q
-    apply (intro iffI ; elim exE conjE ; hypsubst_thin)
-    subgoal for x\<^sub>1 x\<^sub>1'
-      by (rule exI[of _ \<open>x\<^sub>1'\<close>] ;  simp ; blast)
-    subgoal for x\<^sub>1 
-      by (rule exI[of _ \<open>\<phi>\<^sub>2 x\<^sub>1\<close>] ;           
-          intro conjI ; simp? ; blast)
-    done
-  subgoal for x y
-    apply (intro iffI ; elim exE conjE ; hypsubst_thin)
-    subgoal for _ _ x\<^sub>1 y\<^sub>1
-      by (rule exI[of _ \<open>x\<^sub>1\<close>] ; rule exI[of _ \<open>y\<^sub>1\<close>] ; simp)
-    subgoal for x\<^sub>1 y\<^sub>1
-      apply (rule exI[of _ \<open>\<phi>\<^sub>2 x\<^sub>1\<close>] ; 
-          rule exI[of _ \<open>\<phi>\<^sub>2 y\<^sub>1\<close>] ;
-          intro conjI ; simp?)
-      by (rule exI[of _ \<open>x\<^sub>1\<close>] ; rule exI[of _ \<open>y\<^sub>1\<close>] ; simp)
-    done
-  done
 
 
+lemma \<^marker>\<open>tag (proof) aponly\<close> (in particular_struct) morph_img_comp[simp]:   
+  fixes \<phi>\<^sub>1 :: \<open>'p \<Rightarrow> 'p\<^sub>1\<close> and
+        \<phi>\<^sub>2 :: \<open>'p\<^sub>1 \<Rightarrow> 'p\<^sub>2\<close> 
+  shows  \<open>MorphImg (\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) \<Gamma> = MorphImg \<phi>\<^sub>2 (MorphImg \<phi>\<^sub>1 \<Gamma>)\<close>
+proof -
+
+  interpret S4: particular_struct_sig \<open>MorphImg (\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>1) \<Gamma>\<close> \<open>TYPE('p\<^sub>2)\<close> .   
+  interpret S3: particular_struct_sig \<open>MorphImg \<phi>\<^sub>2 (MorphImg \<phi>\<^sub>1 \<Gamma>)\<close> \<open>TYPE('p\<^sub>2)\<close>.
+  interpret S2: particular_struct_sig \<open>MorphImg \<phi>\<^sub>1 \<Gamma>\<close>  \<open>TYPE('p\<^sub>1)\<close>.
+  
+  have A: \<open>z \<in> particulars \<Gamma>\<close> if \<open>w \<in> \<W>\<close> \<open>z \<in> w\<close> for z w
+    using that by (meson possible_worlds_sig.\<P>_I)
+
+  have B: \<open>w \<subseteq> particulars \<Gamma>\<close> if \<open>w \<in> \<W>\<close> for w    
+    using A that by blast
+
+  have C[simp]: \<open>w \<in> \<W> \<Longrightarrow> (\<phi>\<^sub>2 \<circ>\<^bsub>particulars \<Gamma>\<^esub> \<phi>\<^sub>1) ` w =  \<phi>\<^sub>2 ` \<phi>\<^sub>1 ` w\<close>
+    for w using  map_comp_img[OF B] by metis
+  have D1[simp]: \<open>(\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) x = \<phi>\<^sub>2 (\<phi>\<^sub>1 x)\<close> if \<open>x \<triangleleft> y\<close> for x y
+    using that by (meson compose_eq inherence_scope)
+  have D2[simp]: \<open>(\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) x = \<phi>\<^sub>2 (\<phi>\<^sub>1 x)\<close> if \<open>y \<triangleleft> x\<close> for x y
+    using that by (meson compose_eq inherence_scope)
+  have E[simp]: \<open>(\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) x = \<phi>\<^sub>2 (\<phi>\<^sub>1 x)\<close> if \<open>x \<leadsto> q\<close> for x q
+    apply (intro compose_eq)
+    using that by (meson assoc_quale_scopeD(1)) 
+  have F1[simp]: \<open>(\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) x = \<phi>\<^sub>2 (\<phi>\<^sub>1 x)\<close> if \<open>x \<longlongrightarrow> y\<close> for x y
+    apply (intro compose_eq)
+    using that by auto
+  have F2[simp]: \<open>(\<phi>\<^sub>2 \<circ>\<^bsub>\<P>\<^esub> \<phi>\<^sub>1) x = \<phi>\<^sub>2 (\<phi>\<^sub>1 x)\<close> if \<open>y \<longlongrightarrow> x\<close> for x y
+    apply (intro compose_eq)
+    using that by auto
+  show ?thesis
+    apply (rule particular_struct_eqI ; auto)
+    subgoal G1 for w
+      by (intro exI[of _ \<open>\<phi>\<^sub>1 ` w\<close>] conjI  exI[of _ w] ; simp)
+    subgoal G2 for w
+      by (intro exI[of _ w] conjI ; simp?)
+    subgoal G3
+      (* \<open>lift_morph_2 \<Gamma> \<phi> p x y \<equiv> \<exists>x\<^sub>1 y\<^sub>1. p \<Gamma> x\<^sub>1 y\<^sub>1 \<and> x = \<phi> x\<^sub>1 \<and> y = \<phi> y\<^sub>1\<close> *)
+      apply (intro ext iffI ; (elim exE conjE)? ; hypsubst_thin)
+      subgoal for _ _ x y
+        apply (rule exI[of _ \<open>\<phi>\<^sub>1 x\<close>] ; rule exI[of _ \<open>\<phi>\<^sub>1 y\<close>] ; intro conjI iffI ; simp?)
+        by blast
+      subgoal for _ _ _ _ x y
+        by (rule exI[of _ x] ; rule exI[of _ y] ; auto)
+      done
+    subgoal G4
+      apply (intro ext iffI ; (elim exE conjE)? ; hypsubst_thin)
+      subgoal for _ q x
+        by (rule exI[of _ \<open>\<phi>\<^sub>1 x\<close>] ; (intro conjI)? ; (rule exI[of _ x])? ; 
+            (intro conjI)? ; simp?)
+      subgoal for _ q _ x
+        by (intro exI[of _ x] ; simp)
+      done
+    subgoal G5
+      apply (intro ext iffI ; (elim exE conjE)? ; hypsubst_thin)
+      subgoal for _ _ x y 
+        apply (rule exI[of _ \<open>\<phi>\<^sub>1 x\<close>] ; rule exI[of _ \<open>\<phi>\<^sub>1 y\<close>] ; intro conjI ; simp?)
+        by (rule exI[of _ x] ; rule exI[of _ y] ; intro conjI ; simp)
+      subgoal for _ _ _ _ x y
+        by (rule exI[of _ x] ; rule exI[of _ y] ; intro conjI ; simp)
+      done
+    done
+qed
 
 context ufo_particular_theory
 begin
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> inj_morph_img_valid_structure:
   fixes \<phi> :: \<open>'p \<Rightarrow> 'p\<^sub>1\<close>
-  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close>
+  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close> \<open>undefined \<notin> \<phi> ` \<P>\<close>
   shows \<open>particular_struct (MorphImg \<phi> \<Gamma>)\<close>
 proof -
-  define phi_inv (\<open>\<phi>\<inverse>\<close>) where \<open>\<phi>\<inverse> \<equiv> inv_into \<P> \<phi>\<close>
+  define phi_inv (\<open>\<phi>\<inverse>\<close>) where \<open>\<phi>\<inverse> \<equiv> Inv \<P> \<phi>\<close>
 
   obtain phi_inv:
       \<open>\<And>x. x \<in> \<P> \<Longrightarrow> \<phi>\<inverse> (\<phi> x) = x\<close>
@@ -2172,7 +2505,8 @@ proof -
       \<open>\<And>X. \<phi>\<inverse> ` \<phi> ` (X \<inter> \<P>) = X \<inter> \<P>\<close>
       \<open>\<And>X. \<phi> ` \<phi>\<inverse> ` (X \<inter> \<phi> ` \<P>) = X \<inter> \<phi> ` \<P>\<close>
     using assms(1) that
-    by (simp add: f_inv_into_f image_inv_into_cancel phi_inv_def)
+    apply (simp add:  image_Inv_cancel phi_inv_def)    
+    by (metis Inv_inj_surj image_Inv_cancel subset_imageE)
 
   have same_worlds: \<open>w\<^sub>1 = w\<^sub>2\<close> if as: \<open>w\<^sub>1 \<in> \<W>\<close> \<open>w\<^sub>2 \<in> \<W>\<close> \<open>\<phi> ` w\<^sub>1 = \<phi> ` w\<^sub>2\<close> for w\<^sub>1 w\<^sub>2
     using as worlds_are_made_of_particulars assms(1)     
@@ -2213,13 +2547,18 @@ proof -
   let \<open>?inheresIn\<close> = \<open>\<lambda>x y. \<exists>x\<^sub>1 y\<^sub>1. x\<^sub>1 \<triangleleft> y\<^sub>1 \<and> x = \<phi> x\<^sub>1 \<and> y = \<phi> y\<^sub>1\<close>
   let \<open>?assocQuale\<close> = \<open>\<lambda>x q. \<exists>x\<^sub>1. x\<^sub>1 \<leadsto> q \<and> x = \<phi> x\<^sub>1\<close>
   let \<open>?towards\<close> = \<open>\<lambda>x y. \<exists>x\<^sub>1 y\<^sub>1. x\<^sub>1 \<longlongrightarrow> y\<^sub>1 \<and> x = \<phi> x\<^sub>1 \<and> y = \<phi> y\<^sub>1\<close>
-
+  
   interpret M: possible_worlds \<open>?\<W>\<close> \<open>TYPE('p\<^sub>1)\<close>
     apply (unfold_locales)
     subgoal has_inj using assms by blast
     subgoal using at_least_one_possible_world by auto
     subgoal using A1 by blast
-    done  
+    subgoal  
+      apply (elim CollectE exE conjE ; hypsubst_thin)
+      subgoal for w
+        using assms(3) by blast
+      done  
+    done
 
   have Med_simp[simp]: \<open>M.ed x y \<longleftrightarrow> (\<exists>x\<^sub>1 y\<^sub>1. ed x\<^sub>1 y\<^sub>1 \<and> x = \<phi> x\<^sub>1 \<and> y = \<phi> y\<^sub>1)\<close> for x y
     apply (simp only: possible_worlds_sig.ed_def ; simp)
@@ -2446,30 +2785,32 @@ qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> inj_morph_img_isomorphism[intro]:
   fixes \<phi> :: \<open>'p \<Rightarrow> 'p\<^sub>1\<close>
-  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close>
+  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close> 
+          \<open>\<phi> \<in> extensional \<P>\<close> \<open>undefined \<notin> \<phi> ` \<P>\<close>
   shows \<open>particular_struct_bijection_1 \<Gamma> \<phi>\<close>
 proof -
-  note assms[simp]
+  have A:\<open> x \<notin> \<E> \<Longrightarrow> \<phi> x = undefined\<close> for x
+    using assms(3)
+    by (simp add: extensional_def ; metis)
   interpret M: particular_struct \<open>MorphImg \<phi> \<Gamma>\<close> \<open>TYPE('p\<^sub>1)\<close>
-    using inj_morph_img_valid_structure[OF assms] .
-
+    using inj_morph_img_valid_structure[OF assms(1,2,4)] .
+  have B: \<open>\<phi> x = undefined\<close> if \<open>\<forall>w\<in>\<W>. x \<notin> w\<close> for x
+    apply (intro A)
+    using that by auto
+    
   interpret I: pre_particular_struct_morphism \<Gamma> \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>
-    apply (simp add: 
-        pre_particular_struct_morphism_def
+    apply (simp add: pre_particular_struct_morphism_def
         M.ufo_particular_theory_axioms
         M.particular_struct_axioms
         ufo_particular_theory_axioms)
-    apply (unfold_locales ; simp add: possible_worlds_sig.\<P>_def
-          ; (intro iffI)? ; elim bexE conjE exE ; hypsubst_thin?)
-    subgoal G1 by blast
-    subgoal G2 by (metis \<P>_I assms(1) inherence_scope inj_onD)
-    subgoal G3 by blast
-    subgoal G4 by (metis \<P>_E inherence_scope)    
-    subgoal G5 by (metis \<P>_I assms(1) inj_on_contraD towardness_scopeD(2) towardness_scopeD(3))
-    subgoal G6 by blast
-    subgoal G6 by (metis \<P>_E towardness_scopeE)
-    subgoal G7 by blast
-    by (metis \<P>_I assms(1) assoc_quale_scopeD(1) inj_onD)
+    apply (unfold_locales ; simp add: inherence_sig.\<S>_def possible_worlds_sig.\<P>_def inherence_sig.\<M>_def extensional_def; auto? )
+    subgoal G1 by (metis \<P>_I assms(1) inherence_scope inj_on_eq_iff)
+    subgoal G2 using B by metis
+    subgoal G3 by (metis \<P>_I assms(1) inherence_scope inj_onD)
+    subgoal G4 by (metis \<P>_I assms(1) inj_onD towardness_scopeD(2) towardness_scopeD(3)) 
+    subgoal G5 by (metis Union_iff possible_worlds_sig.\<P>_def towardness_scopeD(3))
+    subgoal G6 by (metis \<P>_I assms(1) assoc_quale_scopeD(1) inj_on_eq_iff)
+    done
     
   interpret I: particular_struct_morphism \<Gamma> \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>
     apply (unfold_locales ; simp add: I.world_corresp_def
@@ -2477,8 +2818,9 @@ proof -
         ; (elim imageE)? ; hypsubst_thin?)
     by (metis assms(1) inj_on_image_mem_iff worlds_are_made_of_particulars)+    
 
-  interpret I: particular_struct_injection \<Gamma> \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>
-    by (unfold_locales ; simp)
+  interpret I: particular_struct_injection \<Gamma> \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>    
+    apply (unfold_locales)    
+    by (simp add: assms(1))
 
   interpret I: particular_struct_surjection \<Gamma> \<open>MorphImg \<phi> \<Gamma>\<close> \<phi>
     by (unfold_locales ; auto simp: possible_worlds_sig.\<P>_def)    
@@ -2489,39 +2831,57 @@ qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> inj_morph_img_BijMorphs:
   fixes \<phi> :: \<open>'p \<Rightarrow> 'p\<^sub>1\<close>
-  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close>
+  assumes \<open>inj_on \<phi> \<P>\<close> \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close> \<open>\<phi> \<in> extensional \<P>\<close> 
+          \<open>undefined \<notin> \<phi> ` \<P>\<close>
   shows \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close>
   apply (intro bijections_I)
   using assms inj_morph_img_isomorphism by metis
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> BijMorphs_iff_inj[simp]:  \<open>(\<phi> :: 'p \<Rightarrow> 'p\<^sub>1) \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub> \<longleftrightarrow> inj_on \<phi> \<P> \<and> (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f)\<close>
-proof (intro iffI ; (elim conjE)?)
-  show \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close> if as: \<open>inj_on \<phi> \<E>\<close> \<open>\<exists>f::'p\<^sub>1 \<Rightarrow> ZF. inj f\<close>
-    using inj_morph_img_BijMorphs[OF as] by simp
-  show \<open>inj_on \<phi> \<P> \<and>  (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f)\<close> 
+lemma \<^marker>\<open>tag (proof) aponly\<close> BijMorphs_iff_inj[simp]:  
+  \<open>(\<phi> :: 'p \<Rightarrow> 'p\<^sub>1) \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub> \<longleftrightarrow> 
+    inj_on \<phi> \<P> \<and> (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f) \<and> \<phi> \<in> extensional \<P>
+        \<and> undefined \<notin> \<phi> ` \<P>\<close>
+proof (intro iffI ; (elim conjE)?)  
+  show \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close> 
+    if as: \<open>inj_on \<phi> \<E>\<close> \<open>\<exists>f::'p\<^sub>1 \<Rightarrow> ZF. inj f\<close> \<open>\<phi> \<in> extensional \<P>\<close> 
+           \<open>undefined \<notin> \<phi> ` \<P>\<close>
+    by (intro inj_morph_img_BijMorphs[OF as])
+  show \<open>inj_on \<phi> \<P> \<and>  (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f) \<and> \<phi> \<in> extensional \<P>
+          \<and> undefined \<notin> \<phi> ` \<P>\<close> 
     if as: \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close> for \<phi> :: \<open>'p \<Rightarrow> 'p\<^sub>1\<close> and X
-  proof 
+  proof (intro conjI)
     interpret I1: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close>
       using as by blast
     show \<open>inj_on \<phi> \<E>\<close> using I1.morph_is_injective by simp
     show \<open>\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f\<close> using I1.tgt.injection_to_ZF_exist .
+    show \<open>\<phi> \<in> extensional \<P>\<close> using I1.morphism_extensional by simp
+    show \<open>undefined \<notin> \<phi> ` \<P>\<close> using I1.undefined_not_in_img by simp    
   qed
 qed
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> isomorphism_1_iff_inj[simp]:  
   \<open>particular_struct_bijection_1 \<Gamma> (\<phi> :: 'p \<Rightarrow> 'p\<^sub>1) \<longleftrightarrow>
-       inj_on \<phi> \<P> \<and> (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f)\<close>
+       inj_on \<phi> \<P> \<and> (\<exists>(f :: 'p\<^sub>1 \<Rightarrow> ZF). inj f) \<and> \<phi> \<in> extensional \<P>
+       \<and> undefined \<notin> \<phi> ` \<P>\<close>
   using BijMorphs_iff_inj
-  apply (simp only: bijections1_def)
+  apply (simp only: bijections1_def)  
   by blast
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> Perms_iff_inj[simp]:  \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<longleftrightarrow> inj_on \<phi> \<P> \<and> MorphImg \<phi> \<Gamma> = \<Gamma>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> Perms_iff_inj[simp]:  
+\<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub> \<longleftrightarrow> inj_on \<phi> \<P> \<and> MorphImg \<phi> \<Gamma> = \<Gamma> \<and> \<phi> \<in> extensional \<P>
+                  \<and> undefined \<notin> \<phi> ` \<P>\<close>
 proof -
-  have A: \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE('p)\<^esub>\<close> if as: \<open>inj_on \<phi> \<P>\<close> 
-    using inj_morph_img_BijMorphs[OF as] injection_to_ZF_exist by simp
-  have B: \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close> if as: \<open>inj_on \<phi> \<P>\<close> and as1[simp]: \<open>MorphImg \<phi> \<Gamma> = \<Gamma>\<close>
+  have A: \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE('p)\<^esub>\<close> 
+    if as: \<open>inj_on \<phi> \<P>\<close> \<open>\<phi> \<in> extensional \<P>\<close> \<open>undefined \<notin> \<phi> ` \<P>\<close>
+    using inj_morph_img_BijMorphs[OF as(1) _ as(2)] injection_to_ZF_exist    
+    by (simp add: as)
+  have B: \<open>\<phi> \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close> 
+    if as: \<open>inj_on \<phi> \<P>\<close> and as1[simp]: \<open>MorphImg \<phi> \<Gamma> = \<Gamma>\<close> 
+       and extens: \<open>\<phi> \<in> extensional \<P>\<close> 
+       and undef: \<open>undefined \<notin> \<phi> ` \<P>\<close>
   proof -
-    interpret I: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close> using A as by blast
+    interpret I: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close> 
+      using A as extens undef by blast
     interpret I1: particular_struct_permutation \<open>\<Gamma>\<close> \<open>\<phi>\<close> 
       apply (simp add: particular_struct_permutation_def
               I.particular_struct_bijection_axioms[simplified as1])
@@ -2533,14 +2893,17 @@ proof -
     show \<open>?thesis\<close>  
       using I1.particular_struct_permutation_axioms by blast
   qed
-  have C: \<open>inj_on \<phi>' \<P> \<and> MorphImg \<phi>' \<Gamma> = \<Gamma>\<close> if \<open>\<phi>' \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close> for \<phi>'
+  have C: \<open>inj_on \<phi>' \<P> \<and> MorphImg \<phi>' \<Gamma> = \<Gamma> \<and> \<phi>' \<in> extensional \<P>
+            \<and> undefined \<notin> \<phi>' ` \<P>\<close> if \<open>\<phi>' \<in> Perms\<^bsub>\<Gamma>\<^esub>\<close> for \<phi>'
   proof -
     interpret I1: particular_struct_permutation \<open>\<Gamma>\<close> \<open>\<phi>'\<close> 
       using that by blast    
     interpret I: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>'\<close>
       using I1.particular_struct_permutation_to_isomorphism_1 by simp
-    show \<open>inj_on \<phi>' \<P> \<and> MorphImg \<phi>' \<Gamma> = \<Gamma>\<close>
-      using I.morph_is_injective by auto
+    show \<open>inj_on \<phi>' \<P> \<and> MorphImg \<phi>' \<Gamma> = \<Gamma> \<and> \<phi>' \<in> extensional \<P>
+          \<and> undefined \<notin> \<phi>' ` \<P>\<close>
+      using I.morph_is_injective I.morphism_extensional
+        I.undefined_not_in_img by auto
   qed
   show \<open>?thesis\<close>
     apply (intro iffI ; (elim conjE)?)
@@ -2554,26 +2917,36 @@ end
 context particular_struct_bijection_1
 begin
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> phi_in_iso_morphs[intro]: \<open>\<phi> \<in> BijMorphs1\<^bsub>src.\<Gamma>,X\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> phi_in_iso_morphs[intro]: 
+  \<open>\<phi> \<in> BijMorphs1\<^bsub>src.\<Gamma>,X\<^esub>\<close>
   apply simp
-  using tgt.injection_to_ZF_exist by blast
+  using tgt.injection_to_ZF_exist  
+  using morph_is_surjective undefined_not_in_img by blast
 
-lemma \<^marker>\<open>tag (proof) aponly\<close> tgt_in_src_iso_models[intro]:  \<open>MorphImg \<phi> src.\<Gamma> \<in> IsoModels\<^bsub>src.\<Gamma>,X\<^esub>\<close>
+lemma \<^marker>\<open>tag (proof) aponly\<close> tgt_in_src_iso_models[intro]:  
+  \<open>MorphImg \<phi> src.\<Gamma> \<in> IsoModels\<^bsub>src.\<Gamma>,X\<^esub>\<close>
   by (intro isomorphic_models_I[of \<open>\<phi>\<close>] phi_in_iso_morphs ; simp )
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> tgt_Gamma_eq_Morph_img[simp]: \<open>tgt.\<Gamma> = MorphImg \<phi> src.\<Gamma>\<close>
   apply (simp add: MorphImg_def)
   by (intro particular_struct_eqI ext ; simp add: ufo_particular_theory_sig.\<Gamma>_def)
 
-interpretation \<^marker>\<open>tag (proof) aponly\<close> inv_morph: particular_struct_bijection_1 \<open>MorphImg \<phi> src.\<Gamma>\<close> \<open>\<phi>\<inverse>\<close> \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
-  apply (intro tgt.inj_morph_img_isomorphism[simplified tgt_Gamma_eq_Morph_img])  
-  using src.injection_to_ZF_exist
-  by auto
+interpretation \<^marker>\<open>tag (proof) aponly\<close> 
+  inv_morph: particular_struct_bijection_1 
+    \<open>MorphImg \<phi> src.\<Gamma>\<close> 
+    \<open>\<phi>\<inverse>\<close> 
+    \<open>TYPE('p\<^sub>2)\<close> \<open>TYPE('p\<^sub>1)\<close>
+  apply (intro tgt.inj_morph_img_isomorphism[
+         simplified tgt_Gamma_eq_Morph_img] ; simp?)    
+  subgoal G2 using src.injection_to_ZF_exist .  
+  subgoal G3 by (metis Inv_extensional morph_is_surjective)  
+  using phi_inv_img src.undefined_not_in_particulars by auto
+  
   
 lemma \<^marker>\<open>tag (proof) aponly\<close> preserves_morphisms_src_tgt:
   fixes \<sigma> :: \<open>'p\<^sub>1 \<Rightarrow> 'p\<^sub>3\<close>
   assumes \<open>particular_struct_morphism src.\<Gamma> \<Gamma>' \<sigma>\<close>
-  shows \<open>particular_struct_morphism tgt.\<Gamma> \<Gamma>' (\<sigma> \<circ> \<phi>\<inverse>)\<close>
+  shows \<open>particular_struct_morphism tgt.\<Gamma> \<Gamma>' (\<sigma> \<circ>\<^bsub>particulars tgt.\<Gamma>\<^esub> \<phi>\<inverse>)\<close>
   apply (intro particular_struct_morphism_comp[OF _ assms])
   by (metis inv_is_bijective_morphism inv_morph.particular_struct_morphism_axioms particular_struct_bijection_1.tgt_Gamma_eq_Morph_img particular_struct_bijection_iff_particular_struct_bijection_1 tgt_Gamma_eq_Morph_img)
 
@@ -2584,7 +2957,7 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> isomorphisms_respect_morphisms
     and \<Gamma>   :: \<open>('p\<^sub>1,'q) particular_struct\<close>
     and \<Gamma>\<^sub>\<sigma> :: \<open>('p\<^sub>3,'q) particular_struct\<close>
   assumes \<open>\<phi> \<in> BijMorphs1\<^bsub>\<Gamma>,X\<^esub>\<close> \<open>\<sigma> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>\<^sub>\<sigma>\<^esub>\<close>          
-  shows \<open>\<sigma> \<circ> (invMorph \<Gamma> \<phi>) \<in> Morphs\<^bsub>MorphImg \<phi> \<Gamma>,\<Gamma>\<^sub>\<sigma>\<^esub>\<close>
+  shows \<open>\<sigma> \<circ>\<^bsub>\<phi> ` particulars \<Gamma>\<^esub> (invMorph \<Gamma> \<phi>) \<in> Morphs\<^bsub>MorphImg \<phi> \<Gamma>,\<Gamma>\<^sub>\<sigma>\<^esub>\<close>
 proof -
   interpret I1: particular_struct_bijection_1 \<open>\<Gamma>\<close> \<open>\<phi>\<close>
     using assms(1) by blast
@@ -2594,18 +2967,20 @@ proof -
   interpret I3: particular_struct_bijection_1 \<open>MorphImg \<phi> \<Gamma>\<close> \<open>I1.inv_morph\<close>
     apply (simp only: I1.tgt.isomorphism_1_iff_inj[simplified S1]
           ; intro conjI ; simp?)
-    using I1.src.injection_to_ZF_exist by blast    
+    subgoal   using I1.src.injection_to_ZF_exist by simp    
+    subgoal by (metis I1.morph_is_surjective Inv_extensional)    
+    using I1.phi_inv_img I1.src.undefined_not_in_particulars by auto
   have A: \<open>I1.src.\<Gamma> = \<Gamma>\<close> by auto
   have B: \<open>I3.src.\<Gamma> = MorphImg \<phi> \<Gamma>\<close> 
     by (intro particular_struct_eqI ; simp only: I3.src.\<Gamma>_simps)  
   have C: \<open>I3.tgt.endurants = I1.src.endurants\<close>
     apply (auto simp: possible_worlds_sig.\<P>_def)
     subgoal for x w
-      apply (intro bexI[of _ \<open>w\<close>] ; simp?)      
-      using particular_struct_bijection.tgt_is_morph_img by force
+      apply (intro bexI[of _ \<open>w\<close>] ; simp?)            
+      using I1.src.\<P>_def particular_struct_bijection.tgt_is_morph_img by force
     subgoal for x w
-      apply (intro bexI[of _ \<open>w\<close>] ; simp?)      
-      using particular_struct_bijection.tgt_is_morph_img by force
+      apply (intro bexI[of _ \<open>w\<close>] ; simp?)            
+      using I1.src.\<P>_def particular_struct_bijection.tgt_is_morph_img by force
     done
   have D: \<open>MorphImg I1.inv_morph (MorphImg \<phi> \<Gamma>) = \<Gamma>\<close>    
     apply (intro particular_struct_eqI ; simp?)    
@@ -2617,19 +2992,40 @@ proof -
   show \<open>?thesis\<close>
     apply (intro morphs_I particular_struct_morphism_comp[of _ \<open>\<Gamma>\<close>]
             I2.particular_struct_morphism_axioms)
-    using I3.particular_struct_morphism_axioms[simplified D] .    
+    using D I2.particular_struct_morphism_axioms 
+      I3.particular_struct_morphism_axioms particular_struct_morphism_comp 
+    by fastforce    
 qed
 
 context ufo_particular_theory
 begin
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> isomorphs_to_zf_non_empty[simp]: \<open>BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub> \<noteq> \<emptyset>\<close>
-proof -
+proof -  
   obtain \<sigma> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>inj \<sigma>\<close>  using injection_to_ZF_exist by blast
-  have \<open>particular_struct_bijection_1 \<Gamma> \<sigma>\<close>
-    apply simp
-    using \<open>inj \<sigma>\<close> inj_on_id inj_on_subset by blast
-  then have \<open>\<sigma> \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> by blast
+  define \<theta> :: \<open>'p \<Rightarrow> ZF\<close> where \<open>\<theta> x = Opair undefined (\<sigma> x)\<close> for x
+  define f where \<open>f = restrict \<theta> \<E>\<close>
+  have A[simp]: \<open>undefined \<noteq> Opair undefined x\<close> for x    
+    by (metis Elem_Opair_exists notsym_Elem)
+  have B[simp]: \<open>undefined \<notin> f ` \<E>\<close>
+    by (auto simp add: f_def \<theta>_def)
+  have C[simp]: \<open>f \<in> extensional \<E>\<close>
+    by (simp add: extensional_def f_def)
+  have D[simp]: \<open>inj_on \<sigma> \<E>\<close>
+    using inj_on_subset[OF \<open>inj \<sigma>\<close>] by auto
+  have E[simp]: \<open>inj_on \<theta> \<E>\<close>
+    apply (intro inj_onI ; simp add: \<theta>_def)
+    subgoal for x y
+      apply (rule D[THEN inj_onD,of x y] ; simp?)      
+      by (meson Opair)
+    done
+  have F[simp]: \<open>inj_on f \<E>\<close>
+    using E by (simp add: f_def)
+  have \<open>particular_struct_bijection_1 \<Gamma> f\<close>    
+    apply (intro inj_morph_img_isomorphism  ; simp?)
+    using \<open>inj \<sigma>\<close> by blast    
+
+  then have \<open>f \<in> BijMorphs1\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> by simp
   then show ?thesis by blast    
 qed
 

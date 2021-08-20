@@ -49,15 +49,15 @@ proof (intro subsetI)
   obtain \<open>x \<in> \<E>\<close> using as by blast
 
   have A: \<open>\<sigma> x = \<phi> x\<close> 
-    if \<open>inj_on \<phi> \<E>\<close> 
+    if \<open>inj_on \<phi> \<E>\<close> \<open>\<phi> \<in> extensional \<E>\<close> \<open>undefined \<notin> \<phi> ` \<E>\<close>
        \<open>particular_struct_morphism \<Gamma> (MorphImg \<phi> \<Gamma>) \<sigma>\<close>
     for \<phi>  \<sigma> :: \<open>'p \<Rightarrow> ZF\<close>
     apply (rule as[THEN isomorphically_unique_particulars_E])
     subgoal premises P
       apply (rule P(2)[simplified,OF conjI
-                ,OF that(1)[simplified] _ that(2) \<open>x \<in> \<E>\<close>,
-                THEN iffD2])
-      using inj_on_id by blast+
+                ,OF that(1)[simplified] _ that(4) \<open>x \<in> \<E>\<close>,
+                THEN iffD2] ; simp?)
+      using inj_on_id that by blast+
     done
 
   have pick_ex: \<open>\<exists>!y. \<forall>\<phi>' \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>. \<phi>' x = y\<close> 
@@ -79,6 +79,8 @@ proof (intro subsetI)
     have BB: \<open>\<phi>' x = \<phi>\<^sub>1 x\<close> if as2: \<open>\<phi>' \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub>\<close> for \<phi>'    
       apply (rule A)
       subgoal using phi1.morph_is_injective[simplified] .
+      subgoal using phi1.morphism_extensional[simplified] .
+      subgoal using phi1.undefined_not_in_img by force
       using phi1(2) as2 morphs_D by metis
 
     show \<open>?thesis\<close>
@@ -148,9 +150,14 @@ proof (intro subsetI)
                  OF P(2) as(1,2)]        
     have D: \<open>P (MorphImg \<phi> \<Gamma>) (\<sigma> x) \<longleftrightarrow> P (MorphImg \<phi> \<Gamma>) (\<phi> x)\<close>      
       by (metis C(1) C(2) P(1))
+    have D1: \<open>\<phi> \<in> extensional \<E>\<close> 
+      using phi.morphism_extensional by auto
+    have D2: \<open>undefined \<notin> \<phi> ` \<E>\<close> 
+      using phi.undefined_not_in_img by force
     have E: \<open>\<phi> x = \<sigma> x \<longleftrightarrow> P (MorphImg \<phi> \<Gamma>) (\<phi> x)\<close>
-      using C(2)[of \<open>\<phi> x\<close>]      
-      using P(1) P(2) identity_pred phi.morph_is_injective by auto
+      using C(2)[of \<open>\<phi> x\<close>] P(1) 
+          P(2)[THEN identity_pred, OF phi.morph_is_injective[simplified],of \<open>\<phi> x\<close>
+                , simplified] D1 D2 by metis
     have E1: \<open>MorphImg \<phi> \<Gamma> \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub>\<close> 
       using as(1) by blast
     obtain F: \<open>\<And>\<Gamma>' \<phi> y. \<Gamma>' \<in> IsoModels\<^bsub>\<Gamma>,TYPE(ZF)\<^esub> \<Longrightarrow> \<phi> \<in> Morphs\<^bsub>\<Gamma>,\<Gamma>'\<^esub> \<Longrightarrow> P \<Gamma>' y = (\<forall>z\<in>phi.src.endurants. (y = \<phi> z) = (z = x))\<close>
@@ -162,7 +169,8 @@ proof (intro subsetI)
     show \<open>\<sigma> y = \<phi> x \<longleftrightarrow> y = x\<close>
       apply (intro iffI)
       subgoal using G P(2) as(3) identity_pred phi.particular_struct_bijection_1_axioms by auto
-      subgoal using J by (metis E P(2) identity_pred phi.morph_is_injective ufo_particular_theory_sig.\<Gamma>_simps(2))
+      subgoal using J
+        by (metis D1 D2 E P(2) \<Gamma>_simps(2) identity_pred phi.morph_is_injective)
       done      
   qed
 qed
@@ -181,7 +189,6 @@ text \<^marker>\<open>tag bodyonly\<close> \<open>
 theorem identifiables_are_the_non_permutables: \<open>\<P>\<^sub>= = \<P>\<^sub>1\<^sub>!\<close>
   using identifiables_are_the_im_uniques
   by (simp add: non_permutable_particulars_are_the_unique_particulars)    
-
 
 end
 

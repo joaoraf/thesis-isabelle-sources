@@ -1,5 +1,5 @@
 theory Common
-  imports Main "HOL-ZF.MainZF" "HOL-Library.LaTeXsugar"    
+  imports Main "HOL-ZF.MainZF" "HOL-Library.LaTeXsugar" 
 begin
 
 (* hiding set *)

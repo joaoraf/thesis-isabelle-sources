@@ -104,7 +104,9 @@ locale \<^marker>\<open>tag aponly\<close> possible_worlds =
     injection_to_ZF_exist: \<open>\<exists>(f :: 'p \<Rightarrow> ZF). inj f\<close> and  
     at_least_one_possible_world: \<open>\<W> \<noteq> \<emptyset>\<close> and    
     particulars_do_not_exist_in_some_world: 
-      \<open>x \<in> \<P> \<Longrightarrow> \<exists>w\<in>\<W>. x \<notin> w\<close> 
+      \<open>x \<in> \<P> \<Longrightarrow> \<exists>w\<in>\<W>. x \<notin> w\<close> and
+    undefined_not_in_particulars:
+      \<open>w \<in> \<W> \<Longrightarrow> undefined \<notin> w\<close>
 begin
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>

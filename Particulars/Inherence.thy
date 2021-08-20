@@ -834,15 +834,18 @@ lemma inherence_original_allows_cycles:
   \<open>\<exists>(\<W> :: nat set set) inheresIn. 
       inherence_original \<W> inheresIn \<and> cyclic inheresIn\<close>
 proof -  
-  let \<open>?\<W>\<close> = \<open>{\<emptyset>,{1,2,3 :: nat}}\<close>
+  let ?a = \<open>Suc undefined\<close>
+  let ?b = \<open>Suc ?a\<close>
+  let ?c = \<open>Suc ?b\<close>
+  let \<open>?\<W>\<close> = \<open>{\<emptyset>,{?a,?b,?c :: nat}}\<close>
   define inheresIn where inheresIn[simp]: 
-    \<open>inheresIn x y \<equiv> (x = 1 \<and> y = 2) \<or> (x = 2 \<and> y = 3) \<or> (x = 3 \<and> y = 1)\<close> 
+    \<open>inheresIn x y \<equiv> (x = ?a \<and> y = ?b) \<or> (x = ?b \<and> y = ?c) \<or> (x = ?c \<and> y = ?a)\<close> 
     for x y :: \<open>nat\<close>
   interpret possible_worlds \<open>?\<W>\<close> 
     apply (unfold_locales ; simp?)
     using inj_nat2Nat by auto
-  have I_eq[simp]: \<open>\<P> = {1,2,3}\<close> by (simp only: \<P>_def ; blast)
-  have ed_iff[simp]: \<open>ed x y \<longleftrightarrow> x \<in> {1,2,3} \<and> y \<in> {1,2,3}\<close> for x y
+  have I_eq[simp]: \<open>\<P> = {?a,?b,?c}\<close> by (simp only: \<P>_def ; blast)
+  have ed_iff[simp]: \<open>ed x y \<longleftrightarrow> x \<in> {?a,?b,?c} \<and> y \<in> {?a,?b,?c}\<close> for x y
     by (simp only: ed_def ; simp only: I_eq ; blast)
 
   interpret inherence_base \<open>?\<W>\<close> \<open>inheresIn\<close>
@@ -854,10 +857,10 @@ proof -
   interpret inherence_original \<open>?\<W>\<close> \<open>inheresIn\<close>
     by (unfold_locales ; simp ; linarith)        
           
-  have \<open>inheresIn\<^sup>+\<^sup>+ 1 1\<close> 
+  have \<open>inheresIn\<^sup>+\<^sup>+ ?a ?a\<close> 
   proof -
-    obtain \<open>inheresIn 1 2\<close> \<open>inheresIn 2 3\<close> \<open>inheresIn 3 1\<close> by simp
-    then show \<open>inheresIn\<^sup>+\<^sup>+ 1 1\<close> by (metis tranclp.simps)
+    obtain \<open>inheresIn ?a ?b\<close> \<open>inheresIn ?b ?c\<close> \<open>inheresIn ?c ?a\<close> by simp
+    then show \<open>inheresIn\<^sup>+\<^sup>+ ?a ?a\<close> by (metis tranclp.simps)
   qed
   then have \<open>cyclic inheresIn\<close> by (auto simp: cyclic_def)
   then show \<open>?thesis\<close> using inherence_original_axioms by blast
@@ -1207,22 +1210,54 @@ lemma inherence_V2_allows_infinite_inherence_chain:
         inherence_V2 \<W> inheresIn
       \<and> inherence_sig.has_inf_inh_asc_chain inheresIn\<close> 
 proof -
-  let \<open>?\<W>\<close> = \<open>{\<emptyset>,UNIV :: nat set}\<close>  
-  let \<open>?inheresIn\<close> = \<open>\<lambda>x y. y = Suc x\<close>
+  let \<open>?\<W>\<close> = \<open>{\<emptyset>,{x . undefined < x } :: nat set}\<close>  
+  let \<open>?inheresIn\<close> = \<open>\<lambda>x y. undefined < x \<and> y = Suc x\<close>
   interpret possible_worlds \<open>?\<W>\<close> 
-    by (unfold_locales ; simp? ; blast intro!: inj_nat2Nat)        
+    using inj_nat2Nat by (unfold_locales ; simp? ; blast)        
   interpret inherence_original \<open>?\<W>\<close> \<open>?inheresIn\<close>
     by (unfold_locales ; simp add: ed_def \<P>_def)
+  have A: \<open>x < y \<Longrightarrow> \<exists>k. 0 < k \<and> y = x + k\<close> for x y :: nat by presburger
+  have B: \<open>inheres_in_trancl x y \<longleftrightarrow> undefined < x \<and> x < y\<close> for x y
+    apply (intro iffI)
+    subgoal
+      apply (induct  rule: tranclp_induct)
+      subgoal for z by presburger
+      by simp
+    subgoal 
+      apply (elim conjE ; drule A[of x y] ; elim exE conjE ; hypsubst_thin)
+      subgoal for k
+        apply (induct k arbitrary: x ; simp)
+        subgoal premises P for t u
+          apply (cases \<open>0 < t\<close>)
+          subgoal 
+            apply (drule P(1)[OF P(2)])
+            apply (rule tranclp.intros(2)[of _ _ \<open>u + t\<close>] ; simp)            
+            by (simp add: P(2) trans_less_add1)
+          using P by auto
+        done
+      done
+    done
+  have C[simp]: \<open>\<not> inheres_in_trancl x x\<close> for x 
+    by (simp add: B)
+        
   interpret inherence_V2 \<open>?\<W>\<close> \<open>?inheresIn\<close>
-    by (unfold_locales ; insert less_nat_rel ; auto)        
-  have A: \<open>?inheresIn\<^sup>*\<^sup>* = (\<le>)\<close>
-  proof (intro ext)    
-    show \<open>?inheresIn\<^sup>*\<^sup>* x y \<longleftrightarrow> x \<le> y\<close> for x y
-      by (metis Nitpick.rtranclp_unfold le_eq_less_or_eq less_nat_rel) 
-  qed
+    apply (unfold_locales ; intro notI)
+    by simp
+
+  have \<open>R\<^sup>*\<^sup>* x y \<longleftrightarrow> x = y \<or> R\<^sup>+\<^sup>+ x y\<close> 
+    for x y :: 'a and R 
+    by (simp add: Nitpick.rtranclp_unfold)
+  have D: \<open>?inheresIn\<^sup>*\<^sup>* = (\<lambda>x y. x = y \<or> undefined < x \<and> x < y)\<close>    
+    apply (intro ext)
+    by (simp only: Nitpick.rtranclp_unfold B)
+        
   have \<open>has_inf_inh_asc_chain\<close>
-    by (simp add: has_inf_inh_asc_chain_def ; intro exI[of _ \<open>UNIV\<close>] 
-          ; intro exI[of _ \<open>0\<close>] ; simp add: inf_inh_asc_chain_def A)
+    apply (simp add: has_inf_inh_asc_chain_def)
+    apply (intro exI[of _ \<open>{x . undefined < x}\<close>])
+    apply (intro exI[of _ \<open>Suc undefined\<close>])
+    apply (auto simp add: inf_inh_asc_chain_def D)
+    by (metis finite_nat_set_iff_bounded mem_Collect_eq 
+        not_less_eq not_less_iff_gr_or_eq)
   then show \<open>?thesis\<close> using inherence_V2_axioms by auto
 qed
 

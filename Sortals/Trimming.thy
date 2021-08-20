@@ -358,16 +358,26 @@ proof -
     using phi.morph_image_tgt_struct phi.morph_image_worlds_src by auto
 
   have C[simp]: \<open>\<phi> ` w\<^sub>2 = \<phi> ` w\<^sub>1 \<longleftrightarrow> w\<^sub>2 = w\<^sub>1\<close> if \<open>w\<^sub>1 \<in> \<W>\<close> \<open>w\<^sub>2 \<in> \<W>\<close> for w\<^sub>1 w\<^sub>2
-    using that phi.phi_inv_phi_world by fastforce
+    using that phi.phi_inv_phi_world by (metis \<Gamma>_simps(2))
   have D[simp]: \<open>possible_worlds_sig.\<P> ((`) \<phi> ` phi.src.\<W>) = \<phi> ` \<P>\<close>    
     using phi.morph_image_worlds_src phi.morph_is_surjective by auto
   have E: \<open>inj_on (f \<circ> \<phi>) \<E> \<longleftrightarrow> inj_on f (\<phi> ` \<E>)\<close> for f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close>
     using inj_on_imageI[of f \<phi> \<E>] comp_inj_on[OF phi.morph_is_injective[simplified]]
     by metis
   have F: \<open>f ` \<phi> ` w\<^sub>2 = (\<lambda>x. f (\<phi> x)) ` w\<^sub>2\<close> for f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close> and w\<^sub>2
-    by auto
+    by auto 
   have G[simp,intro!]: \<open>inj_on f\<^sub>2 (\<phi> ` \<E>)\<close>
     using f2 inj_on_subset by auto
+  have f_phi_ext: \<open>f \<circ> \<phi> \<in> extensional \<P>\<close> if 
+    as: \<open>f \<in> extensional (\<phi> ` \<P>)\<close> 
+      for f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close>
+    using as phi.morphism_extensional apply (simp add: extensional_def)
+    apply safe    
+    using phi.undefined_not_in_img by auto
+  have H: \<open>MorphImg (f \<circ> \<phi>) \<Gamma> = MorphImg f (MorphImg \<phi> \<Gamma>)\<close> for f :: \<open>'p\<^sub>1 \<Rightarrow> ZF\<close>
+    apply (subst phi.src.morph_img_comp[of f \<phi>,symmetric])
+    apply (auto )
+    sorry
   show ?thesis
     apply (intro iffI iso_instantiation_sig.iof_I[OF inj_on_subset[OF f2]]
       ; simp only: phi.morph_image_worlds_src D
@@ -376,8 +386,14 @@ proof -
       ; simp)
     subgoal premises P for f w\<^sub>2      
       apply (intro exI[of _ x\<^sub>1] ; simp? ; intro exI[of _ w\<^sub>2] ; simp)
-      apply (intro iof_I[of \<open>f \<circ> \<phi>\<close>,simplified E,OF P(1,3),of x\<^sub>1,simplified])
-      using P(2)[simplified,simplified F]  .
+      apply (intro iof_I[of \<open>f \<circ> \<phi>\<close>,simplified E,OF P(1), of w\<^sub>2 x\<^sub>1 u,OF P(5),
+            OF,simplified])
+      subgoal G1
+        using P(2)
+        sorry
+      subgoal G2 by (intro f_phi_ext P)        
+      apply (simp add: image_def ; safe)      
+      using P(4) by blast
     subgoal premises P for x\<^sub>2 w\<^sub>2 f
       using 
         phi.invariant_under_isomorphisms_B[OF iso_invariant_iof_predicate_axioms

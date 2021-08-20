@@ -38,6 +38,13 @@ datatype endurant =
     | Sphere2Radius20M 
     | Sphere1Dist200M 
     | Sphere2Dist200M
+    | Undefined
+    
+
+axiomatization
+  where endurantUndefined[simp]: 
+          \<open>undefined = Undefined\<close>
+      
 
 text \<^marker>\<open>tag bodyonly\<close> \<open>
   The endurants are:
@@ -262,6 +269,7 @@ proof (intro finite_acyclic_wf[to_pred])
       subgoal using tranclp.cases by fastforce
       subgoal using tranclp.cases by fastforce
       subgoal using tranclp.cases by fastforce
+      subgoal using converse_tranclpE by fastforce
       done
     done
 qed
@@ -283,17 +291,20 @@ proof (intro finite_acyclic_wf[to_pred] ; simp)
       subgoal using converse_tranclpE by fastforce
       subgoal using converse_tranclpE by fastforce
       subgoal using converse_tranclpE by fastforce
+      subgoal using converse_tranclpE by fastforce
       done
     done
 qed        
     
-fun \<^marker>\<open>tag aponly\<close> endurant_enum :: \<open>endurant \<Rightarrow> nat\<close> where
+fun \<^marker>\<open>tag aponly\<close> endurant_enum :: \<open>endurant \<Rightarrow> nat\<close> where  
   \<open>endurant_enum Sphere1 = 0\<close> |
   \<open>endurant_enum Sphere2 = 1\<close> |
   \<open>endurant_enum Sphere1Radius10M = 2\<close> |
   \<open>endurant_enum Sphere1Dist200M = 3\<close> |
   \<open>endurant_enum Sphere2Radius20M = 4\<close> |
-  \<open>endurant_enum Sphere2Dist200M = 5\<close> 
+  \<open>endurant_enum Sphere2Dist200M = 5\<close> |
+  \<open>endurant_enum Undefined = 1000\<close>
+  
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> endurant_enum_inj: \<open>inj endurant_enum\<close>
   apply (intro inj_onI  ; simp)
@@ -316,18 +327,11 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf1: particular_str
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf1: possible_worlds \<open>conf1.\<W>\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
   subgoal G1 using endurant_inj_to_zf_ex .
-  subgoal G2 by (auto simp: all_defs)    
-  subgoal G3 by (auto simp: all_defs) 
-  done
+  by (auto simp: all_defs)+
 
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf1: inherence \<open>conf1.\<W>\<close> \<open>conf1.inheresIn\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
-  subgoal G1 by (auto simp: all_defs)    
-  subgoal G2 by (auto simp: all_defs)
-  subgoal G3 by (auto simp: all_defs)
-  subgoal G4 by (auto simp: all_defs)
-  subgoal G5 by (auto simp: all_defs)
-  done
+  by (auto simp: all_defs)+
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> conf1_moments: \<open>conf1.\<M> = {Sphere1Radius10M,Sphere1Dist200M,
                      Sphere2Radius20M,Sphere2Dist200M}\<close>
@@ -351,7 +355,9 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf1: qualified_part
   subgoal G4 by (auto simp: all_defs)
   subgoal G5 for w y\<^sub>1 y\<^sub>2 x q\<^sub>1 q\<^sub>2 Q
     (* slow *)
-    apply (cases y\<^sub>1 ; simp ; cases y\<^sub>2 ; simp ; cases x ; simp add: all_defs)
+    apply (cases y\<^sub>1 ; simp add: all_defs
+           ; cases y\<^sub>2 ; simp add: all_defs
+           ; cases x ; simp add: all_defs )  
     by (elim disjE conjE ; simp ; hypsubst_thin)+
   subgoal G6 by (auto simp: all_defs)
   subgoal G7 by (auto simp: all_defs)
@@ -369,8 +375,19 @@ lemma \<^marker>\<open>tag (proof) aponly\<close> conf1_ultimate_bearers[simp]:
   apply (cases x ; simp ; intro conf1.ultimate_bearer_eq_simp[THEN iffD2] conjI
          ; (simp add: conf1_substantials conf1.endurants_eq_un_moments_subst
                   conf1_moments)?)
-  by (simp add: conf1_def tw_part_structure_def all_endurants_def
-            tw_inheres_in_def tw_inheres_in_rtrancl_simp)+
+  supply A = conf1_def tw_part_structure_def all_endurants_def
+            tw_inheres_in_def tw_inheres_in_rtrancl_simp
+  subgoal  by (simp add: A)
+  subgoal  by (simp add: A)
+  subgoal  by (simp add: A)
+  subgoal  by (simp add: A)
+  subgoal 
+    using assms apply simp    
+    using conf1.undefined_not_in_particulars by auto
+  subgoal 
+    using assms apply simp    
+    using conf1.undefined_not_in_particulars by auto
+  done
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> conf1_directed_moments[simp]:
   \<open>conf1.directed_moments = {Sphere1Dist200M,Sphere2Dist200M}\<close>
@@ -380,7 +397,9 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf1: towardness
       \<open>conf1.\<W>\<close> \<open>conf1.inheresIn\<close> \<open>conf1.towards\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
   subgoal G1 for x y
-    by (intro conjI  ; cases x; cases y ; simp add: all_defs inherence_sig.\<M>_def inherence_sig.\<S>_def) 
+    (* slow *)
+    supply simps = all_defs inherence_sig.\<M>_def inherence_sig.\<S>_def
+    by (intro conjI  ; cases x; simp add: simps ; cases y ; simp add: simps) 
   subgoal G2 
     by (simp add: conf1.ed_def ; auto simp: all_defs)
   subgoal G3 premises P for x y 
@@ -419,18 +438,12 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf2: particular_str
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf2: possible_worlds \<open>conf2.\<W>\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
   subgoal G1 using endurant_inj_to_zf_ex .
-  subgoal G2 by (auto simp: all_defs)    
-  subgoal G3 by (auto simp: all_defs) 
-  done
+  by (auto simp: all_defs) 
+  
 
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf2: inherence \<open>conf2.\<W>\<close> \<open>conf2.inheresIn\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
-  subgoal G1 by (auto simp: all_defs)    
-  subgoal G2 by (auto simp: all_defs)
-  subgoal G3 by (auto simp: all_defs)
-  subgoal G4 by (auto simp: all_defs)
-  subgoal G5 by (auto simp: all_defs)
-  done
+  by (auto simp: all_defs)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> conf2_moments: \<open>conf2.\<M> = {Sphere1Dist200M,Sphere2Dist200M}\<close>
   by (auto simp: all_defs inherence_sig.\<M>_def)
@@ -450,8 +463,8 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf2: qualified_part
   subgoal G4 by (auto simp: all_defs)
   subgoal G5 for w y\<^sub>1 y\<^sub>2 x q\<^sub>1 q\<^sub>2 Q
     (* slow *)
-    apply (cases y\<^sub>1 ; simp ; cases y\<^sub>2 ; simp ; cases x ; simp add: all_defs)
-    done
+    by (cases y\<^sub>1 ; simp add: all_defs
+        ; cases y\<^sub>2 ; simp add: all_defs; cases x ; simp add: all_defs)
   subgoal G6 by (auto simp: all_defs)
   subgoal G7 by (auto simp: all_defs)
   done
@@ -483,7 +496,9 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf2: towardness
       \<open>conf2.\<W>\<close> \<open>conf2.inheresIn\<close> \<open>conf2.towards\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
   subgoal G1 for x y
-    by (intro conjI  ; cases x; cases y ; simp add: all_defs inherence_sig.\<M>_def inherence_sig.\<S>_def)
+    (* slow *)
+    supply simps = all_defs inherence_sig.\<M>_def inherence_sig.\<S>_def
+    by (intro conjI  ; cases x ; simp add: simps ; cases y ; simp add: simps)
   subgoal G2 
     by (simp add: conf2.ed_def ; auto simp: all_defs)
   subgoal G3 premises P for x y 
@@ -517,18 +532,11 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf3: particular_str
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf3: possible_worlds \<open>conf3.\<W>\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
   subgoal G1 using endurant_inj_to_zf_ex .
-  subgoal G2 by (auto simp: all_defs)    
-  subgoal G3 by (auto simp: all_defs) 
-  done
+  by (auto simp: all_defs)
 
 interpretation \<^marker>\<open>tag (proof) aponly\<close> conf3: inherence \<open>conf3.\<W>\<close> \<open>conf3.inheresIn\<close> \<open>TYPE(endurant)\<close>
   apply (unfold_locales)
-  subgoal G1 by (auto simp: all_defs)    
-  subgoal G2 by (auto simp: all_defs)
-  subgoal G3 by (auto simp: all_defs)
-  subgoal G4 by (auto simp: all_defs)
-  subgoal G5 by (auto simp: all_defs)
-  done
+  by (auto simp: all_defs)
 
 lemma \<^marker>\<open>tag (proof) aponly\<close> conf3_moments: \<open>conf3.\<M> = \<emptyset>\<close>
   by (auto simp: all_defs inherence_sig.\<M>_def)
@@ -548,7 +556,8 @@ interpretation \<^marker>\<open>tag (proof) aponly\<close> conf3: qualified_part
   subgoal G4 by (auto simp: all_defs)
   subgoal G5 for w y\<^sub>1 y\<^sub>2 x q\<^sub>1 q\<^sub>2 Q
     (* slow *)
-    apply (cases y\<^sub>1 ; simp ; cases y\<^sub>2 ; simp ; cases x ; simp add: all_defs)
+    apply (cases y\<^sub>1 ; simp add: all_defs ; cases y\<^sub>2 ; simp add: all_defs ; 
+           cases x ; simp add: all_defs)
     done
   subgoal G6 by (auto simp: all_defs)
   subgoal G7 by (auto simp: all_defs)
